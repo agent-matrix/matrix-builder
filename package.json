@@ -1,0 +1,23 @@
+{
+  "name": "@ruslanmv/matrix-builder",
+  "version": "0.9.0-batch.9",
+  "private": true,
+  "description": "Matrix Builder gives AI coders a contract, not a prompt.",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @ruslanmv/matrix-builder-web dev",
+    "build": "pnpm --filter @ruslanmv/matrix-builder-web build",
+    "lint": "node scripts/check_frontend.mjs",
+    "typecheck": "pnpm --filter @ruslanmv/matrix-builder-web typecheck",
+    "test": "node scripts/check_frontend.mjs",
+    "security": "python scripts/security_scan.py",
+    "sbom": "python scripts/generate_sbom.py"
+  },
+  "workspaces": [
+    "apps/web",
+    "packages/*"
+  ]
+}

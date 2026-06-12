@@ -1,0 +1,200 @@
+{
+  "prompt_pack_id": "prompt_pack_demo_standard",
+  "bundle_id": "bundle_demo_standard",
+  "blueprint_id": "bp_github_repo_intelligence_standard_001",
+  "default_coder": "gitpilot",
+  "prompts": [
+    {
+      "coder": "claude-code",
+      "label": "Claude Code controlled implementation prompt",
+      "path": "coder-prompts/claude-code.md",
+      "content": "# Claude Code controlled implementation prompt\n\nAI coders are workers, not architects. Fetch this Matrix Bundle and implement TASK-001 only. Edit only allowed files and run validation before finishing.",
+      "contract_files": [
+        "README.md",
+        "MATRIX_BLUEPRINT.yaml",
+        "MATRIX_STANDARDS.lock",
+        "MATRIX_TASKS.md",
+        "MATRIX_ALLOWED_CHANGES.md",
+        "MATRIX_ACCEPTANCE_CRITERIA.md",
+        "MATRIX_VALIDATION.md"
+      ],
+      "allowed_files": [
+        "backend/app/api/routes.py",
+        "backend/tests/test_routes.py",
+        "frontend/app/page.tsx",
+        "frontend/components/hero.tsx"
+      ],
+      "validation_commands": [
+        "pytest -q",
+        "ruff check .",
+        "npm run build"
+      ],
+      "hard_constraints": [
+        "AI coder is worker, not architect",
+        "Implement one Matrix task only",
+        "Do not modify Matrix control files",
+        "No unapproved dependencies"
+      ]
+    },
+    {
+      "coder": "codex-chatgpt",
+      "label": "Codex / ChatGPT controlled implementation prompt",
+      "path": "coder-prompts/codex-chatgpt.md",
+      "content": "# Codex / ChatGPT controlled implementation prompt\n\nAI coders are workers, not architects. Fetch this Matrix Bundle and implement TASK-001 only. Edit only allowed files and run validation before finishing.",
+      "contract_files": [
+        "README.md",
+        "MATRIX_BLUEPRINT.yaml",
+        "MATRIX_STANDARDS.lock",
+        "MATRIX_TASKS.md",
+        "MATRIX_ALLOWED_CHANGES.md",
+        "MATRIX_ACCEPTANCE_CRITERIA.md",
+        "MATRIX_VALIDATION.md"
+      ],
+      "allowed_files": [
+        "backend/app/api/routes.py",
+        "backend/tests/test_routes.py",
+        "frontend/app/page.tsx",
+        "frontend/components/hero.tsx"
+      ],
+      "validation_commands": [
+        "pytest -q",
+        "ruff check .",
+        "npm run build"
+      ],
+      "hard_constraints": [
+        "AI coder is worker, not architect",
+        "Implement one Matrix task only",
+        "Do not modify Matrix control files",
+        "No unapproved dependencies"
+      ]
+    },
+    {
+      "coder": "cursor",
+      "label": "Cursor controlled implementation prompt",
+      "path": "coder-prompts/cursor.md",
+      "content": "# Cursor controlled implementation prompt\n\nAI coders are workers, not architects. Fetch this Matrix Bundle and implement TASK-001 only. Edit only allowed files and run validation before finishing.",
+      "contract_files": [
+        "README.md",
+        "MATRIX_BLUEPRINT.yaml",
+        "MATRIX_STANDARDS.lock",
+        "MATRIX_TASKS.md",
+        "MATRIX_ALLOWED_CHANGES.md",
+        "MATRIX_ACCEPTANCE_CRITERIA.md",
+        "MATRIX_VALIDATION.md"
+      ],
+      "allowed_files": [
+        "backend/app/api/routes.py",
+        "backend/tests/test_routes.py",
+        "frontend/app/page.tsx",
+        "frontend/components/hero.tsx"
+      ],
+      "validation_commands": [
+        "pytest -q",
+        "ruff check .",
+        "npm run build"
+      ],
+      "hard_constraints": [
+        "AI coder is worker, not architect",
+        "Implement one Matrix task only",
+        "Do not modify Matrix control files",
+        "No unapproved dependencies"
+      ]
+    },
+    {
+      "coder": "gitpilot",
+      "label": "GitPilot controlled implementation prompt",
+      "path": "coder-prompts/gitpilot.md",
+      "content": "# GitPilot controlled implementation prompt\n\nAI coders are workers, not architects. Fetch this Matrix Bundle and implement TASK-001 only. Edit only allowed files and run validation before finishing.",
+      "contract_files": [
+        "README.md",
+        "MATRIX_BLUEPRINT.yaml",
+        "MATRIX_STANDARDS.lock",
+        "MATRIX_TASKS.md",
+        "MATRIX_ALLOWED_CHANGES.md",
+        "MATRIX_ACCEPTANCE_CRITERIA.md",
+        "MATRIX_VALIDATION.md"
+      ],
+      "allowed_files": [
+        "backend/app/api/routes.py",
+        "backend/tests/test_routes.py",
+        "frontend/app/page.tsx",
+        "frontend/components/hero.tsx"
+      ],
+      "validation_commands": [
+        "pytest -q",
+        "ruff check .",
+        "npm run build"
+      ],
+      "hard_constraints": [
+        "AI coder is worker, not architect",
+        "Implement one Matrix task only",
+        "Do not modify Matrix control files",
+        "No unapproved dependencies"
+      ]
+    },
+    {
+      "coder": "ibm-bob",
+      "label": "IBM Bob controlled implementation prompt",
+      "path": "coder-prompts/ibm-bob.md",
+      "content": "# IBM Bob controlled implementation prompt\n\nAI coders are workers, not architects. Fetch this Matrix Bundle and implement TASK-001 only. Edit only allowed files and run validation before finishing.",
+      "contract_files": [
+        "README.md",
+        "MATRIX_BLUEPRINT.yaml",
+        "MATRIX_STANDARDS.lock",
+        "MATRIX_TASKS.md",
+        "MATRIX_ALLOWED_CHANGES.md",
+        "MATRIX_ACCEPTANCE_CRITERIA.md",
+        "MATRIX_VALIDATION.md"
+      ],
+      "allowed_files": [
+        "backend/app/api/routes.py",
+        "backend/tests/test_routes.py",
+        "frontend/app/page.tsx",
+        "frontend/components/hero.tsx"
+      ],
+      "validation_commands": [
+        "pytest -q",
+        "ruff check .",
+        "npm run build"
+      ],
+      "hard_constraints": [
+        "AI coder is worker, not architect",
+        "Implement one Matrix task only",
+        "Do not modify Matrix control files",
+        "No unapproved dependencies"
+      ]
+    },
+    {
+      "coder": "generic-ai-coder",
+      "label": "Generic AI coder controlled implementation prompt",
+      "path": "coder-prompts/generic-ai-coder.md",
+      "content": "# Generic AI coder controlled implementation prompt\n\nAI coders are workers, not architects. Fetch this Matrix Bundle and implement TASK-001 only. Edit only allowed files and run validation before finishing.",
+      "contract_files": [
+        "README.md",
+        "MATRIX_BLUEPRINT.yaml",
+        "MATRIX_STANDARDS.lock",
+        "MATRIX_TASKS.md",
+        "MATRIX_ALLOWED_CHANGES.md",
+        "MATRIX_ACCEPTANCE_CRITERIA.md",
+        "MATRIX_VALIDATION.md"
+      ],
+      "allowed_files": [
+        "backend/app/api/routes.py",
+        "backend/tests/test_routes.py",
+        "frontend/app/page.tsx",
+        "frontend/components/hero.tsx"
+      ],
+      "validation_commands": [
+        "pytest -q",
+        "ruff check .",
+        "npm run build"
+      ],
+      "hard_constraints": [
+        "AI coder is worker, not architect",
+        "Implement one Matrix task only",
+        "Do not modify Matrix control files",
+        "No unapproved dependencies"
+      ]
+    }
+  ]
+}

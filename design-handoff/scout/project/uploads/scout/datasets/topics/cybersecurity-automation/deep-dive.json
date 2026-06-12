@@ -1,0 +1,66 @@
+{
+  "topic": {
+    "id": "cybersecurity-automation",
+    "name": "Cybersecurity Automation",
+    "summary": "AI-assisted detection, triage, incident response, and secure software workflows.",
+    "why_follow": "Security demand is durable and AI-assisted automation is becoming important across organizations.",
+    "signals": {
+      "github_activity": 84,
+      "github_growth": 74,
+      "huggingface_activity": 68,
+      "news_mentions": 82,
+      "job_demand": 94,
+      "community_activity": 79,
+      "local_relevance": 84,
+      "project_potential": 85,
+      "career_value": 96,
+      "learning_accessibility": 68,
+      "durability": 96,
+      "ecosystem_fit": 86
+    },
+    "starter_actions": [
+      "Build a phishing analyzer",
+      "Automate log triage",
+      "Study secure agent execution"
+    ],
+    "study_plan": [
+      "Threat modeling",
+      "Log analysis",
+      "Detection rules",
+      "Incident response",
+      "Secure automation"
+    ],
+    "project_ideas": [
+      "Phishing analysis assistant",
+      "Security log summarizer",
+      "Vulnerability triage bot"
+    ],
+    "skills": [
+      "Security",
+      "Python",
+      "SIEM",
+      "Detection engineering"
+    ],
+    "risks": [
+      "Security tooling must be used ethically",
+      "Avoid offensive misuse"
+    ],
+    "sources": [
+      {
+        "name": "GitHub"
+      },
+      {
+        "name": "Jobs"
+      },
+      {
+        "name": "News/RSS"
+      }
+    ],
+    "trust": {
+      "score": 0.87,
+      "label": "High confidence",
+      "hype_risk": 0.15
+    }
+  },
+  "deep_dive_url": "/api/v1/topics/cybersecurity-automation/deep-dive"
+}

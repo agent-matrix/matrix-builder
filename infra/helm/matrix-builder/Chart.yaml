@@ -1,0 +1,6 @@
+apiVersion: v2
+name: matrix-builder
+description: Matrix Builder public control plane for controlled AI-coder bundles
+type: application
+version: 0.8.0
+appVersion: "0.8.0-batch.8"

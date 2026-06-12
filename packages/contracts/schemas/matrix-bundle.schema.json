@@ -1,0 +1,364 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://matrixhub.io/schemas/matrix-builder/matrix-bundle.schema.json",
+  "title": "matrix-bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bundle_id",
+    "blueprint_id",
+    "status",
+    "title",
+    "files",
+    "prompts_available"
+  ],
+  "properties": {
+    "bundle_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "blueprint_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "ready",
+        "expired",
+        "archived",
+        "saved"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "bundle_url": {
+      "type": "string"
+    },
+    "download_url": {
+      "type": "string"
+    },
+    "manifest_digest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "expires_in_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/bundleFile"
+      },
+      "minItems": 1
+    },
+    "prompts_available": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/coderId"
+      },
+      "minItems": 1
+    },
+    "standards": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "validation": {
+      "$ref": "#/$defs/validationStatus"
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "signed_download_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "manifest_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "zip_digest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "zip_size_bytes": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "file_count": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "persisted": {
+      "type": "boolean",
+      "default": false
+    },
+    "owner_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "storage_uri": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tree": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/bundleTreeNode"
+      },
+      "default": []
+    }
+  },
+  "$defs": {
+    "buildType": {
+      "type": "string",
+      "enum": [
+        "app",
+        "agent",
+        "api"
+      ]
+    },
+    "goal": {
+      "type": "string",
+      "enum": [
+        "portfolio",
+        "startup-mvp",
+        "internal-tool",
+        "learning",
+        "open-source",
+        "enterprise"
+      ]
+    },
+    "qualityLevel": {
+      "type": "string",
+      "enum": [
+        "starter",
+        "standard",
+        "production",
+        "enterprise"
+      ]
+    },
+    "coderId": {
+      "type": "string",
+      "enum": [
+        "claude-code",
+        "codex-chatgpt",
+        "cursor",
+        "gitpilot",
+        "ibm-bob",
+        "generic-ai-coder"
+      ]
+    },
+    "validationStatus": {
+      "type": "string",
+      "enum": [
+        "not-run",
+        "approved",
+        "needs-repair",
+        "rejected"
+      ]
+    },
+    "uri": {
+      "type": "string",
+      "minLength": 1
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-fA-F0-9]{16,}$"
+    },
+    "matrixFilePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._/@+:-][A-Za-z0-9._/@+:/ -]*$"
+    },
+    "apiRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "path"
+      ],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "auth_required": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "bundleFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "kind",
+        "required"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/matrixFilePath"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "control",
+            "source",
+            "test",
+            "doc",
+            "prompt",
+            "config",
+            "manifest",
+            "artifact"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "content_type": {
+          "type": "string",
+          "default": "text/plain"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "size_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "violation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "severity",
+        "message"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "minLength": 3
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "remediation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "bundleTreeNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "kind",
+        "required"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/matrixFilePath"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "size_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

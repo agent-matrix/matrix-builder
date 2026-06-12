@@ -1,0 +1,17 @@
+{
+  "schema_version": "matrix.builder.validation-request/v1",
+  "bundle_id": "bundle_demo_standard",
+  "mode": "patch",
+  "changed_files": [
+    {"path": "MATRIX_BLUEPRINT.yaml", "status": "modified"}
+  ],
+  "dependency_changes": [
+    {"ecosystem": "npm", "name": "unapproved-package", "action": "added", "approved": false}
+  ],
+  "artifacts": [],
+  "standards_lock_digest": null,
+  "matrix_blueprint_digest": null,
+  "repository_archive_ref": null,
+  "patch_ref": "patches/demo-rejected.diff",
+  "metadata": {"source": "example"}
+}

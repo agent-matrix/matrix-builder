@@ -1,0 +1,57 @@
+{
+  "schema_version": "matrix.builder.contracts/v1",
+  "name": "Matrix Builder Contract Registry",
+  "version": "0.7.0-batch.7",
+  "schemas": [
+    {
+      "id": "https://matrixhub.io/schemas/matrix-builder/idea-request.schema.json",
+      "title": "idea-request",
+      "path": "packages/contracts/schemas/idea-request.schema.json"
+    },
+    {
+      "id": "https://matrixhub.io/schemas/matrix-builder/blueprint-candidate.schema.json",
+      "title": "blueprint-candidate",
+      "path": "packages/contracts/schemas/blueprint-candidate.schema.json"
+    },
+    {
+      "id": "https://matrixhub.io/schemas/matrix-builder/blueprint-result.schema.json",
+      "title": "blueprint-result",
+      "path": "packages/contracts/schemas/blueprint-result.schema.json"
+    },
+    {
+      "id": "https://matrixhub.io/schemas/matrix-builder/matrix-bundle.schema.json",
+      "title": "matrix-bundle",
+      "path": "packages/contracts/schemas/matrix-bundle.schema.json"
+    },
+    {
+      "id": "https://matrixhub.io/schemas/matrix-builder/bundle-manifest.schema.json",
+      "title": "bundle-manifest",
+      "path": "packages/contracts/schemas/bundle-manifest.schema.json"
+    },
+    {
+      "id": "https://matrixhub.io/schemas/matrix-builder/prompt-pack.schema.json",
+      "title": "prompt-pack",
+      "path": "packages/contracts/schemas/prompt-pack.schema.json"
+    },
+    {
+      "id": "https://matrixhub.io/schemas/matrix-builder/validation-request.schema.json",
+      "title": "validation-request",
+      "path": "packages/contracts/schemas/validation-request.schema.json"
+    },
+    {
+      "id": "https://matrixhub.io/schemas/matrix-builder/validation-report.schema.json",
+      "title": "validation-report",
+      "path": "packages/contracts/schemas/validation-report.schema.json"
+    },
+    {
+      "id": "https://matrixhub.io/schemas/matrix-builder/publication.schema.json",
+      "title": "publication",
+      "path": "packages/contracts/schemas/publication.schema.json"
+    }
+  ],
+  "owned_by": [
+    "matrix-builder",
+    "agent-generator"
+  ],
+  "source_of_truth": "packages/contracts/schemas"
+}

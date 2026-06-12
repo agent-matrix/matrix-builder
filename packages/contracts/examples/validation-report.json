@@ -1,0 +1,32 @@
+{
+  "report_id": "validation_demo_standard",
+  "bundle_id": "bundle_demo_standard",
+  "status": "needs-repair",
+  "score": 82,
+  "violations": [
+    {
+      "rule_id": "RMD-002",
+      "severity": "critical",
+      "path": "MATRIX_BLUEPRINT.yaml",
+      "message": "Immutable Matrix control file was modified by the AI coder.",
+      "remediation": "Restore the file from the original Matrix Bundle and rerun validation."
+    }
+  ],
+  "repair_prompt": "Restore MATRIX_BLUEPRINT.yaml from the bundle. Do not modify Matrix control files. Rerun validation.",
+  "checks": [
+    {
+      "check_id": "required_files_present",
+      "status": "passed",
+      "message": null
+    },
+    {
+      "check_id": "forbidden_changes_absent",
+      "status": "failed",
+      "message": "MATRIX_BLUEPRINT.yaml changed"
+    }
+  ],
+  "created_at": "2026-06-12T12:30:00Z",
+  "approved": false,
+  "matrixhub_publishable": false,
+  "summary": "Needs repair: Matrix control file drift detected."
+}

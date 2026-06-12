@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://matrixhub.io/schemas/matrix-builder/publication.schema.json",
+  "title": "publication",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "publication_id",
+    "bundle_id",
+    "target",
+    "dry_run",
+    "status",
+    "required_artifacts"
+  ],
+  "properties": {
+    "publication_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "bundle_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "target": {
+      "type": "string",
+      "enum": [
+        "matrixhub"
+      ]
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "accepted",
+        "rejected",
+        "pending",
+        "not-connected"
+      ]
+    },
+    "matrixhub_slug": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "required_artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/matrixFilePath"
+      }
+    },
+    "trust_status": {
+      "type": "string",
+      "enum": [
+        "unverified",
+        "verified",
+        "dry-run"
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "accepted": {
+      "type": "boolean"
+    },
+    "missing_artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/matrixFilePath"
+      }
+    },
+    "validation_status": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "validation_report_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "$defs": {
+    "buildType": {
+      "type": "string",
+      "enum": [
+        "app",
+        "agent",
+        "api"
+      ]
+    },
+    "goal": {
+      "type": "string",
+      "enum": [
+        "portfolio",
+        "startup-mvp",
+        "internal-tool",
+        "learning",
+        "open-source",
+        "enterprise"
+      ]
+    },
+    "qualityLevel": {
+      "type": "string",
+      "enum": [
+        "starter",
+        "standard",
+        "production",
+        "enterprise"
+      ]
+    },
+    "coderId": {
+      "type": "string",
+      "enum": [
+        "claude-code",
+        "codex-chatgpt",
+        "cursor",
+        "gitpilot",
+        "ibm-bob",
+        "generic-ai-coder"
+      ]
+    },
+    "validationStatus": {
+      "type": "string",
+      "enum": [
+        "not-run",
+        "approved",
+        "needs-repair",
+        "rejected"
+      ]
+    },
+    "uri": {
+      "type": "string",
+      "minLength": 1
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-fA-F0-9]{16,}$"
+    },
+    "matrixFilePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._/@+:-][A-Za-z0-9._/@+:/ -]*$"
+    },
+    "apiRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "path"
+      ],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "auth_required": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "bundleFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "kind",
+        "required"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/matrixFilePath"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "control",
+            "source",
+            "test",
+            "doc",
+            "prompt",
+            "config",
+            "manifest",
+            "artifact"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "content_type": {
+          "type": "string",
+          "default": "text/plain"
+        },
+        "digest": {
+          "type": "string"
+        }
+      }
+    },
+    "violation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "severity",
+        "message"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "minLength": 3
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "remediation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

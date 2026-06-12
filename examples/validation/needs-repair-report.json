@@ -1,0 +1,31 @@
+{
+  "report_id": "report_example_needs_repair",
+  "bundle_id": "bundle_github_repo_intelligence_standard",
+  "status": "needs-repair",
+  "score": 74,
+  "violations": [
+    {
+      "rule_id": "RMD-105",
+      "severity": "high",
+      "path": "backend/pyproject.toml",
+      "message": "A new dependency was added without approval."
+    }
+  ],
+  "repair_prompt": "Remove the unapproved dependency or request a dependency exception. Do not modify Matrix control files.",
+  "checks": [
+    {
+      "check_id": "matrix.control_files_present",
+      "status": "passed",
+      "message": "All control files are present."
+    },
+    {
+      "check_id": "matrix.dependency_drift",
+      "status": "failed",
+      "message": "Unapproved dependency change detected."
+    }
+  ],
+  "created_at": "2026-06-12T12:05:00Z",
+  "approved": false,
+  "matrixhub_publishable": false,
+  "summary": "The result is close, but dependency drift must be repaired before approval."
+}

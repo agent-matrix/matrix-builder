@@ -1,0 +1,18 @@
+{
+  "families": [
+    "AI Agents",
+    "RAG",
+    "LLMOps",
+    "AI Governance",
+    "Cybersecurity",
+    "Cloud Native AI"
+  ],
+  "topics": [
+    "ai-agents",
+    "rag",
+    "llm-evaluation",
+    "ai-governance",
+    "cybersecurity-automation",
+    "cloud-native-ai"
+  ]
+}

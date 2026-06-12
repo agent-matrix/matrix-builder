@@ -1,0 +1,31 @@
+{
+  "topic_id": "ai-agents",
+  "signals": {
+    "github_activity": 96,
+    "github_growth": 94,
+    "huggingface_activity": 92,
+    "news_mentions": 88,
+    "job_demand": 85,
+    "community_activity": 84,
+    "local_relevance": 82,
+    "project_potential": 96,
+    "career_value": 95,
+    "learning_accessibility": 78,
+    "durability": 90,
+    "ecosystem_fit": 99
+  },
+  "sources": [
+    {
+      "name": "GitHub",
+      "type": "developer_activity"
+    },
+    {
+      "name": "Hugging Face",
+      "type": "ai_builder_activity"
+    },
+    {
+      "name": "News/RSS",
+      "type": "market_signal"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "scout-mcp",
+  "description": "Trend intelligence tools for developers and Agent-Matrix",
+  "tools": [
+    "get_global_trends",
+    "get_local_trends",
+    "recommend_topics",
+    "get_topic_deep_dive",
+    "get_matrix_opportunities"
+  ]
+}

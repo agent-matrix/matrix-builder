@@ -1,0 +1,38 @@
+schema_version: 1
+blueprint_id: mb_example_developer_portfolio_reviewer_starter
+name: Developer Portfolio Reviewer
+slug: developer-portfolio-reviewer
+quality_level: starter
+idea: Review a developer portfolio and suggest clear improvements.
+stack:
+  frontend: nextjs
+  backend: fastapi
+  database: none
+required_files:
+  - README.md
+  - MATRIX_BLUEPRINT.yaml
+  - MATRIX_STANDARDS.lock
+  - MATRIX_TASKS.md
+  - MATRIX_ALLOWED_CHANGES.md
+  - MATRIX_VALIDATION.md
+allowed_change_roots:
+  - frontend/
+  - backend/
+  - tests/
+forbidden_changes:
+  - MATRIX_BLUEPRINT.yaml
+  - MATRIX_STANDARDS.lock
+tasks:
+  - id: TASK-001
+    title: Implement portfolio review API
+    allowed_files:
+      - backend/app/api/review.py
+      - backend/tests/test_review_api.py
+  - id: TASK-002
+    title: Build review form and result page
+    allowed_files:
+      - frontend/app/page.tsx
+      - frontend/components/review-form.tsx
+validation_commands:
+  - pytest -q
+  - npm run build

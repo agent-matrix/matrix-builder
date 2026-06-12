@@ -1,0 +1,15 @@
+{
+  "countries": [
+    "Italy",
+    "United States",
+    "India",
+    "Germany",
+    "France",
+    "Spain",
+    "United Kingdom"
+  ],
+  "default": {
+    "country": "Italy",
+    "city": "Rome"
+  }
+}

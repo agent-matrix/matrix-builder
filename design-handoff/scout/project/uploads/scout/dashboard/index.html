@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scout — Developer Trend Intelligence</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+</head>
+<body>
+  <header class="hero">
+    <nav><strong>Scout</strong><a href="/docs">API Docs</a><a href="https://ruslanmv.com">ruslanmv.com</a></nav>
+    <section>
+      <p class="eyebrow">Developer trend intelligence</p>
+      <h1>Know what to study, follow, and build next.</h1>
+      <p>Scout turns global and local IT signals into study paths, project ideas, and Agent-Matrix opportunities.</p>
+      <div class="search-panel">
+        <input id="country" placeholder="Country" value="Italy" />
+        <input id="city" placeholder="City" value="Rome" />
+        <select id="goal">
+          <option value="career">Career</option>
+          <option value="build_portfolio">Build portfolio</option>
+          <option value="create_agents">Create agents</option>
+          <option value="startup">Startup</option>
+        </select>
+        <button id="load">Find trends</button>
+        <button id="geo">Use my location</button>
+      </div>
+    </section>
+  </header>
+  <main>
+    <section class="grid">
+      <article>
+        <h2>Recommended near you</h2>
+        <div id="recommendations" class="cards"></div>
+      </article>
+      <article>
+        <h2>Global top topics</h2>
+        <div id="global" class="cards"></div>
+      </article>
+    </section>
+    <section>
+      <h2>Deep dive</h2>
+      <pre id="deepdive">Select a topic to inspect the evidence.</pre>
+    </section>
+  </main>
+  <footer>Scout is a public developer-facing layer of Matrix Scout for Agent-Matrix.</footer>
+  <script src="app.js"></script>
+</body>
+</html>

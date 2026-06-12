@@ -1,0 +1,25 @@
+name: Validation issue
+description: Report a validation issue for Matrix Builder
+title: "[Validation issue] "
+labels: [triage]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened or what do you need?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Include bundle id, coder, validation report, or screenshots if relevant.
+    validations:
+      required: false

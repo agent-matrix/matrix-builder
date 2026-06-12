@@ -1,0 +1,18 @@
+{
+  "schema_version": "matrix.builder.validation-request/v1",
+  "bundle_id": "bundle_demo_standard",
+  "mode": "patch",
+  "changed_files": [
+    {"path": "frontend/app/page.tsx", "status": "modified"},
+    {"path": "backend/app/api/routes.py", "status": "modified"}
+  ],
+  "dependency_changes": [],
+  "artifacts": [
+    {"kind": "test-report", "path": "artifacts/pytest.json", "verified": true}
+  ],
+  "standards_lock_digest": null,
+  "matrix_blueprint_digest": null,
+  "repository_archive_ref": null,
+  "patch_ref": "patches/demo-approved.diff",
+  "metadata": {"source": "example"}
+}

@@ -1,0 +1,28 @@
+{
+  "topic_id": "llm-evaluation",
+  "signals": {
+    "github_activity": 86,
+    "github_growth": 90,
+    "huggingface_activity": 80,
+    "news_mentions": 78,
+    "job_demand": 81,
+    "community_activity": 72,
+    "local_relevance": 78,
+    "project_potential": 92,
+    "career_value": 90,
+    "learning_accessibility": 75,
+    "durability": 94,
+    "ecosystem_fit": 96
+  },
+  "sources": [
+    {
+      "name": "GitHub"
+    },
+    {
+      "name": "Hugging Face"
+    },
+    {
+      "name": "News/RSS"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#09110f"/>
+  <text x="80" y="100" fill="#f8fafc" font-size="48" font-weight="700" style="font-family: Inter, Arial, sans-serif;">Validation result</text>
+  <rect x="80" y="150" width="320" height="180" rx="24" fill="#0f2a1b" stroke="#22c55e"/>
+  <text x="120" y="220" fill="#86efac" font-size="34" font-weight="700" style="font-family: Inter, Arial, sans-serif;">Approved</text>
+  <text x="120" y="270" fill="#cbd5e1" font-size="22" style="font-family: Inter, Arial, sans-serif;">Score 96 / 100</text>
+  <rect x="440" y="150" width="320" height="180" rx="24" fill="#2a210f" stroke="#f59e0b"/>
+  <text x="480" y="220" fill="#fbbf24" font-size="34" font-weight="700" style="font-family: Inter, Arial, sans-serif;">Needs repair</text>
+  <text x="480" y="270" fill="#cbd5e1" font-size="22" style="font-family: Inter, Arial, sans-serif;">Repair prompt generated</text>
+  <rect x="800" y="150" width="320" height="180" rx="24" fill="#2a1111" stroke="#ef4444"/>
+  <text x="840" y="220" fill="#fca5a5" font-size="34" font-weight="700" style="font-family: Inter, Arial, sans-serif;">Rejected</text>
+  <text x="840" y="270" fill="#cbd5e1" font-size="22" style="font-family: Inter, Arial, sans-serif;">Contract violation</text>
+  <text x="80" y="430" fill="#f8fafc" font-size="30" font-weight="700" style="font-family: Inter, Arial, sans-serif;">Matrix Builder closes the loop</text>
+  <text x="80" y="480" fill="#cbd5e1" font-size="22" style="font-family: Inter, Arial, sans-serif;">Prompt tools stop at generation. Matrix Builder validates, repairs, or rejects.</text>
+</svg>

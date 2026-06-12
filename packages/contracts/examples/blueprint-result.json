@@ -1,0 +1,89 @@
+{
+  "blueprint_id": "bp_github_repo_intelligence_standard_001",
+  "candidate_id": "candidate-standard-github-repo-intelligence",
+  "name": "GitHub Repo Intelligence Agent",
+  "slug": "github-repo-intelligence-agent",
+  "idea": "Build a GitHub repo intelligence agent that analyzes repositories and creates improvement reports.",
+  "quality_level": "standard",
+  "stack": {
+    "frontend": "nextjs",
+    "backend": "fastapi",
+    "worker": "python",
+    "database": "postgresql",
+    "auth": "none",
+    "deploy": "docker"
+  },
+  "pages": [
+    "/",
+    "/analyze",
+    "/reports/[reportId]"
+  ],
+  "services": [
+    "frontend",
+    "api",
+    "worker"
+  ],
+  "api_routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "summary": "Health check",
+      "auth_required": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/repos/analyze",
+      "summary": "Analyze a repository",
+      "auth_required": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/reports/{report_id}",
+      "summary": "Read analysis report",
+      "auth_required": false
+    }
+  ],
+  "required_files": [
+    "README.md",
+    "MATRIX_BLUEPRINT.yaml",
+    "MATRIX_STANDARDS.lock",
+    "MATRIX_TASKS.md",
+    "MATRIX_ALLOWED_CHANGES.md",
+    "MATRIX_ACCEPTANCE_CRITERIA.md",
+    "MATRIX_VALIDATION.md",
+    "docs/architecture.md",
+    "docs/security.md",
+    "docs/standards-report.md"
+  ],
+  "allowed_change_roots": [
+    "frontend/",
+    "backend/",
+    "worker/",
+    "tests/"
+  ],
+  "forbidden_changes": [
+    "MATRIX_BLUEPRINT.yaml",
+    "MATRIX_STANDARDS.lock",
+    ".github/workflows/"
+  ],
+  "tasks": [
+    {
+      "task_id": "TASK-001",
+      "title": "Implement repository analysis API",
+      "allowed_files": [
+        "backend/app/api/repos.py",
+        "backend/tests/test_repos_api.py"
+      ],
+      "acceptance_criteria": [
+        "POST /api/v1/repos/analyze accepts a repository URL",
+        "Tests cover invalid repository URLs"
+      ]
+    }
+  ],
+  "acceptance_commands": [
+    "ruff check backend/",
+    "pytest -q",
+    "docker build -t github-repo-intelligence-agent ."
+  ],
+  "standards_lock_ref": "MATRIX_STANDARDS.lock"
+}

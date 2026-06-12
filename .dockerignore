@@ -1,0 +1,16 @@
+.git
+.github
+node_modules
+.next
+.venv
+venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.env
+.env.*
+*.zip
+releases
+coverage
+.DS_Store

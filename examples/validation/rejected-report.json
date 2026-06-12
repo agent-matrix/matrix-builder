@@ -1,0 +1,37 @@
+{
+  "report_id": "report_example_rejected",
+  "bundle_id": "bundle_github_repo_intelligence_standard",
+  "status": "rejected",
+  "score": 18,
+  "violations": [
+    {
+      "rule_id": "RMD-001",
+      "severity": "critical",
+      "path": "MATRIX_BLUEPRINT.yaml",
+      "message": "Immutable blueprint file was modified."
+    },
+    {
+      "rule_id": "RMD-003",
+      "severity": "critical",
+      "path": ".github/workflows/release.yml",
+      "message": "Forbidden workflow file was modified."
+    }
+  ],
+  "repair_prompt": "Reject this patch. Restore Matrix control files and regenerate a bounded implementation task.",
+  "checks": [
+    {
+      "check_id": "matrix.forbidden_files_unchanged",
+      "status": "failed",
+      "message": "Forbidden files were changed."
+    },
+    {
+      "check_id": "matrix.standards_lock_verified",
+      "status": "failed",
+      "message": "Standards lock no longer matches the bundle manifest."
+    }
+  ],
+  "created_at": "2026-06-12T12:10:00Z",
+  "approved": false,
+  "matrixhub_publishable": false,
+  "summary": "The result violated core Matrix contract files and must be rejected."
+}

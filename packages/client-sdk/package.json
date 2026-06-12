@@ -1,0 +1,7 @@
+{
+  "name": "@ruslanmv/matrix-builder-client",
+  "version": "0.9.0-batch.9",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts"
+}

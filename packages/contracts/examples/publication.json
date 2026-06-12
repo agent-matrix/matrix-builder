@@ -1,0 +1,20 @@
+{
+  "publication_id": "pub_demo_matrixhub_dry_run",
+  "bundle_id": "bundle_demo_standard",
+  "target": "matrixhub",
+  "dry_run": true,
+  "status": "not-connected",
+  "matrixhub_slug": null,
+  "required_artifacts": [
+    "README.md",
+    "MATRIX_BLUEPRINT.yaml",
+    "MATRIX_STANDARDS.lock",
+    "docs/standards-report.md"
+  ],
+  "trust_status": "dry-run",
+  "message": "MatrixHub publication is not connected in Batch 3, but the payload shape is stable.",
+  "accepted": false,
+  "missing_artifacts": [],
+  "validation_status": "needs-repair",
+  "validation_report_id": "validation_demo_standard"
+}

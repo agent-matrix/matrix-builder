@@ -1,0 +1,19 @@
+# Matrix Builder ownership rules
+
+* @ruslanmv
+
+/.github/ @ruslanmv
+/.github/workflows/ @ruslanmv
+/SECURITY.md @ruslanmv
+/GOVERNANCE.md @ruslanmv
+/CODEOWNERS @ruslanmv
+
+/apps/web/ @ruslanmv
+/services/api/ @ruslanmv
+/workers/ @ruslanmv
+/packages/contracts/ @ruslanmv
+/packages/client-sdk/ @ruslanmv
+/packages/ui/ @ruslanmv
+/docs/ @ruslanmv
+/infra/ @ruslanmv
+/scripts/ @ruslanmv

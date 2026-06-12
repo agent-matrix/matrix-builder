@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#07120f"/>
+  <circle cx="950" cy="120" r="280" fill="#22c55e" opacity="0.12"/>
+  <text x="80" y="120" fill="#86efac" font-size="18" style="font-family: Inter, Arial, sans-serif;">Matrix Builder by Ruslan Magana</text>
+  <text x="80" y="220" fill="#f8fafc" font-size="64" font-weight="700" style="font-family: Inter, Arial, sans-serif;">Give AI coders a contract,</text>
+  <text x="80" y="295" fill="#f8fafc" font-size="64" font-weight="700" style="font-family: Inter, Arial, sans-serif;">not a prompt.</text>
+  <text x="80" y="360" fill="#cbd5e1" font-size="24" style="font-family: Inter, Arial, sans-serif;">Describe an idea. Get a controlled Matrix Bundle.</text>
+  <rect x="80" y="420" width="760" height="88" rx="22" fill="#0f1f1a" stroke="#1f5134"/>
+  <text x="112" y="473" fill="#94a3b8" font-size="22" style="font-family: Inter, Arial, sans-serif;">Build an AI agent that analyzes GitHub repositories...</text>
+  <rect x="860" y="420" width="230" height="88" rx="22" fill="#22c55e"/>
+  <text x="900" y="473" fill="#052e16" font-size="22" font-weight="700" style="font-family: Inter, Arial, sans-serif;">Generate blueprint</text>
+</svg>

@@ -1,0 +1,28 @@
+{
+  "topic_id": "cybersecurity-automation",
+  "signals": {
+    "github_activity": 84,
+    "github_growth": 74,
+    "huggingface_activity": 68,
+    "news_mentions": 82,
+    "job_demand": 94,
+    "community_activity": 79,
+    "local_relevance": 84,
+    "project_potential": 85,
+    "career_value": 96,
+    "learning_accessibility": 68,
+    "durability": 96,
+    "ecosystem_fit": 86
+  },
+  "sources": [
+    {
+      "name": "GitHub"
+    },
+    {
+      "name": "Jobs"
+    },
+    {
+      "name": "News/RSS"
+    }
+  ]
+}

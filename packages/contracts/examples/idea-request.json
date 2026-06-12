@@ -1,0 +1,24 @@
+{
+  "schema_version": "matrix.builder.idea/v1",
+  "idea": "Build a GitHub repo intelligence agent that analyzes repositories and creates improvement reports.",
+  "build_type": "agent",
+  "goal": "portfolio",
+  "preferred_coder": "gitpilot",
+  "quality_level": "standard",
+  "constraints": {
+    "preferred_stack": [
+      "Next.js",
+      "FastAPI",
+      "PostgreSQL"
+    ],
+    "forbidden_stack": [],
+    "deployment_target": "docker",
+    "requires_auth": false,
+    "data_sensitivity": "public"
+  },
+  "metadata": {
+    "source": "matrix-builder-web",
+    "locale": "en",
+    "request_id": "req_demo_001"
+  }
+}

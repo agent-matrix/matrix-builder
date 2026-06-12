@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://matrixhub.io/schemas/matrix-builder/bundle-manifest.schema.json",
+  "title": "bundle-manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "blueprint_id",
+    "title",
+    "created_at",
+    "status",
+    "manifest_digest",
+    "zip_digest",
+    "zip_size_bytes",
+    "file_count",
+    "files",
+    "prompts_available",
+    "standards",
+    "storage_uri",
+    "checksums",
+    "metadata"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "matrix.builder.bundle-manifest/v1"
+    },
+    "bundle_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "blueprint_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "ready",
+        "expired",
+        "archived",
+        "saved"
+      ]
+    },
+    "manifest_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-fA-F0-9]{16,}$"
+    },
+    "zip_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-fA-F0-9]{16,}$"
+    },
+    "zip_size_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "file_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/bundleFile"
+      },
+      "minItems": 1
+    },
+    "prompts_available": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/coderId"
+      },
+      "minItems": 1
+    },
+    "standards": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "storage_uri": {
+      "type": "string",
+      "minLength": 1
+    },
+    "checksums": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "coderId": {
+      "type": "string",
+      "enum": [
+        "claude-code",
+        "codex-chatgpt",
+        "cursor",
+        "gitpilot",
+        "ibm-bob",
+        "generic-ai-coder"
+      ]
+    },
+    "bundleFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "kind",
+        "required"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/matrixFilePath"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "control",
+            "source",
+            "test",
+            "doc",
+            "prompt",
+            "config",
+            "manifest",
+            "artifact"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "content_type": {
+          "type": "string",
+          "default": "text/plain"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "size_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "matrixFilePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._/@+:-][A-Za-z0-9._/@+:/ -]*$"
+    }
+  }
+}

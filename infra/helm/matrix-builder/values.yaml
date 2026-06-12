@@ -1,0 +1,22 @@
+replicaCount: 1
+imagePullPolicy: IfNotPresent
+api:
+  image: ghcr.io/ruslanmv/matrix-builder-api
+  tag: "0.8.0-batch.8"
+  port: 8000
+web:
+  image: ghcr.io/ruslanmv/matrix-builder-web
+  tag: "0.8.0-batch.8"
+  port: 3000
+worker:
+  image: ghcr.io/ruslanmv/matrix-builder-worker
+  tag: "0.8.0-batch.8"
+service:
+  type: ClusterIP
+ingress:
+  enabled: false
+  className: nginx
+  host: matrix-builder.ruslanmv.com
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: 1000m, memory: 1Gi }

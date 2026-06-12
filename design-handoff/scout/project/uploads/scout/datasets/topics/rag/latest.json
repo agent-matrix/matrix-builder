@@ -1,0 +1,64 @@
+{
+  "id": "rag",
+  "name": "Retrieval-Augmented Generation",
+  "summary": "Applications that connect LLMs to private, local, or domain-specific knowledge.",
+  "why_follow": "RAG remains one of the most practical ways to build useful AI applications with enterprise and local data.",
+  "signals": {
+    "github_activity": 93,
+    "github_growth": 86,
+    "huggingface_activity": 88,
+    "news_mentions": 75,
+    "job_demand": 88,
+    "community_activity": 76,
+    "local_relevance": 86,
+    "project_potential": 94,
+    "career_value": 92,
+    "learning_accessibility": 82,
+    "durability": 92,
+    "ecosystem_fit": 91
+  },
+  "starter_actions": [
+    "Build a local document assistant",
+    "Compare vector databases",
+    "Add evaluation to a RAG pipeline"
+  ],
+  "study_plan": [
+    "Embeddings",
+    "Chunking",
+    "Vector search",
+    "Reranking",
+    "Evaluation"
+  ],
+  "project_ideas": [
+    "Local PDF assistant",
+    "RAG evaluation dashboard",
+    "Enterprise knowledge assistant"
+  ],
+  "skills": [
+    "Python",
+    "Vector databases",
+    "Embeddings",
+    "LangChain",
+    "LlamaIndex"
+  ],
+  "risks": [
+    "Poor evaluation can hide hallucinations",
+    "Data privacy must be handled carefully"
+  ],
+  "sources": [
+    {
+      "name": "GitHub"
+    },
+    {
+      "name": "Hugging Face"
+    },
+    {
+      "name": "Jobs"
+    }
+  ],
+  "trust": {
+    "score": 0.89,
+    "label": "High confidence",
+    "hype_risk": 0.18
+  }
+}

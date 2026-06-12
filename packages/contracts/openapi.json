@@ -1,0 +1,3459 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Matrix Builder API",
+    "description": "Public orchestration API for controlled Matrix Bundle generation.",
+    "version": "0.8.0-batch.8"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Api V1 Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Ready",
+        "operationId": "ready_api_v1_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Ready Api V1 Ready Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/status": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Auth Status",
+        "operationId": "auth_status_api_v1_auth_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Auth Status Api V1 Auth Status Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/session": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Create Session",
+        "operationId": "create_session_api_v1_auth_session_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/session/verify": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Verify Session",
+        "operationId": "verify_session_api_v1_auth_session_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object",
+                "title": "Payload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Verify Session Api V1 Auth Session Verify Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audit/recent": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Recent Audit Events",
+        "operationId": "recent_audit_events_api_v1_audit_recent_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Recent Audit Events Api V1 Audit Recent Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ideas/parse": {
+      "post": {
+        "tags": [
+          "ideas"
+        ],
+        "summary": "Parse",
+        "operationId": "parse_api_v1_ideas_parse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdeaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdeaIntent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/blueprints/candidates": {
+      "post": {
+        "tags": [
+          "blueprints"
+        ],
+        "summary": "Candidates",
+        "operationId": "candidates_api_v1_blueprints_candidates_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdeaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlueprintCandidateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/blueprints": {
+      "post": {
+        "tags": [
+          "blueprints"
+        ],
+        "summary": "Generate Blueprint",
+        "operationId": "generate_blueprint_api_v1_blueprints_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdeaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlueprintResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/blueprints/generate": {
+      "post": {
+        "tags": [
+          "blueprints"
+        ],
+        "summary": "Generate Selected Blueprint",
+        "operationId": "generate_selected_blueprint_api_v1_blueprints_generate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlueprintGenerationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlueprintResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/quota/guest": {
+      "get": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Guest Quota",
+        "operationId": "guest_quota_api_v1_bundles_quota_guest_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotaStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/cleanup/expired": {
+      "post": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Cleanup Expired Bundles",
+        "operationId": "cleanup_expired_bundles_api_v1_bundles_cleanup_expired_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleCleanupResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles": {
+      "post": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Generate Bundle",
+        "operationId": "generate_bundle_api_v1_bundles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BundleGenerationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatrixBundle"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{bundle_id}": {
+      "get": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Get Bundle",
+        "operationId": "get_bundle_api_v1_bundles__bundle_id__get",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatrixBundle"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{bundle_id}/manifest": {
+      "get": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Get Bundle Manifest",
+        "operationId": "get_bundle_manifest_api_v1_bundles__bundle_id__manifest_get",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleManifest"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{bundle_id}/tree": {
+      "get": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Get Bundle Tree",
+        "operationId": "get_bundle_tree_api_v1_bundles__bundle_id__tree_get",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BundleTreeNode"
+                  },
+                  "title": "Response Get Bundle Tree Api V1 Bundles  Bundle Id  Tree Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{bundle_id}/prompt/{coder}": {
+      "get": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Get Bundle Prompt",
+        "operationId": "get_bundle_prompt_api_v1_bundles__bundle_id__prompt__coder__get",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          },
+          {
+            "name": "coder",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Coder"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{bundle_id}/signed-url": {
+      "post": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Create Signed Bundle Url",
+        "operationId": "create_signed_bundle_url_api_v1_bundles__bundle_id__signed_url_post",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedBundleUrlResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{bundle_id}/save": {
+      "post": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Save Bundle",
+        "operationId": "save_bundle_api_v1_bundles__bundle_id__save_post",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BundleSaveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleSaveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{bundle_id}/validate": {
+      "post": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Validate Bundle",
+        "operationId": "validate_bundle_api_v1_bundles__bundle_id__validate_post",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ValidationRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{bundle_id}/publish-to-matrixhub": {
+      "post": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Publish Bundle To Matrixhub",
+        "operationId": "publish_bundle_to_matrixhub_api_v1_bundles__bundle_id__publish_to_matrixhub_post",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PublicationRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bundles/{bundle_id}/download": {
+      "get": {
+        "tags": [
+          "bundles"
+        ],
+        "summary": "Download Bundle",
+        "operationId": "download_bundle_api_v1_bundles__bundle_id__download_get",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          },
+          {
+            "name": "expires",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expires"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prompts/{coder}": {
+      "get": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Get Demo Prompt",
+        "operationId": "get_demo_prompt_api_v1_prompts__coder__get",
+        "parameters": [
+          {
+            "name": "coder",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Coder"
+            }
+          },
+          {
+            "name": "bundle_url",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bundle Url"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prompts/{bundle_id}/{coder}": {
+      "get": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Get Prompt For Bundle",
+        "operationId": "get_prompt_for_bundle_api_v1_prompts__bundle_id___coder__get",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          },
+          {
+            "name": "coder",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Coder"
+            }
+          },
+          {
+            "name": "bundle_url",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bundle Url"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prompts/{bundle_id}/pack/all": {
+      "get": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Get Prompt Pack",
+        "operationId": "get_prompt_pack_api_v1_prompts__bundle_id__pack_all_get",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptPack"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/validation/reports": {
+      "post": {
+        "tags": [
+          "validation"
+        ],
+        "summary": "Validate Placeholder",
+        "operationId": "validate_placeholder_api_v1_validation_reports_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/validation/patch": {
+      "post": {
+        "tags": [
+          "validation"
+        ],
+        "summary": "Validate Patch",
+        "operationId": "validate_patch_api_v1_validation_patch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/validation/repository": {
+      "post": {
+        "tags": [
+          "validation"
+        ],
+        "summary": "Validate Repository",
+        "operationId": "validate_repository_api_v1_validation_repository_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/standards/current": {
+      "get": {
+        "tags": [
+          "standards"
+        ],
+        "summary": "Current",
+        "operationId": "current_api_v1_standards_current_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardsStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/publications/matrixhub": {
+      "post": {
+        "tags": [
+          "publications"
+        ],
+        "summary": "Publish Matrixhub Dry Run",
+        "operationId": "publish_matrixhub_dry_run_api_v1_publications_matrixhub_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/publications/matrixhub/{bundle_id}": {
+      "post": {
+        "tags": [
+          "publications"
+        ],
+        "summary": "Publish Matrixhub Bundle",
+        "operationId": "publish_matrixhub_bundle_api_v1_publications_matrixhub__bundle_id__post",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Bundle Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PublicationRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/guest-plan": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Guest Plan",
+        "operationId": "guest_plan_api_v1_users_guest_plan_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPlan"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Root Health",
+        "operationId": "root_health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Root Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiRoute": {
+        "properties": {
+          "method": {
+            "type": "string",
+            "pattern": "^(GET|POST|PUT|PATCH|DELETE)$",
+            "title": "Method"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^/",
+            "title": "Path"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "auth_required": {
+            "type": "boolean",
+            "title": "Auth Required",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "method",
+          "path"
+        ],
+        "title": "ApiRoute"
+      },
+      "BlueprintCandidate": {
+        "properties": {
+          "candidate_id": {
+            "type": "string",
+            "title": "Candidate Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "quality_level": {
+            "$ref": "#/components/schemas/QualityLevel"
+          },
+          "stack": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stack"
+          },
+          "recommended": {
+            "type": "boolean",
+            "title": "Recommended",
+            "default": false
+          },
+          "estimated_files": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Estimated Files",
+            "default": 1
+          },
+          "estimated_effort": {
+            "type": "string",
+            "title": "Estimated Effort",
+            "default": "unknown"
+          },
+          "difficulty": {
+            "type": "string",
+            "title": "Difficulty",
+            "default": "medium"
+          },
+          "standards_profile": {
+            "type": "string",
+            "title": "Standards Profile",
+            "default": "standard"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale",
+            "default": ""
+          },
+          "generator_actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Generator Actions"
+          },
+          "validation_checks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Validation Checks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "candidate_id",
+          "title",
+          "slug",
+          "summary",
+          "quality_level"
+        ],
+        "title": "BlueprintCandidate"
+      },
+      "BlueprintCandidateResponse": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/BlueprintCandidate"
+            },
+            "type": "array",
+            "title": "Candidates"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "candidates"
+        ],
+        "title": "BlueprintCandidateResponse"
+      },
+      "BlueprintGenerationRequest": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version",
+            "default": "matrix.builder.blueprint-generation/v1"
+          },
+          "idea_request": {
+            "$ref": "#/components/schemas/IdeaRequest"
+          },
+          "candidate_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "idea_request"
+        ],
+        "title": "BlueprintGenerationRequest"
+      },
+      "BlueprintResult": {
+        "properties": {
+          "blueprint_id": {
+            "type": "string",
+            "title": "Blueprint Id"
+          },
+          "candidate_id": {
+            "type": "string",
+            "title": "Candidate Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "idea": {
+            "type": "string",
+            "title": "Idea"
+          },
+          "quality_level": {
+            "$ref": "#/components/schemas/QualityLevel"
+          },
+          "stack": {
+            "$ref": "#/components/schemas/BlueprintStack"
+          },
+          "pages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pages"
+          },
+          "services": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Services"
+          },
+          "api_routes": {
+            "items": {
+              "$ref": "#/components/schemas/ApiRoute"
+            },
+            "type": "array",
+            "title": "Api Routes"
+          },
+          "required_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Files"
+          },
+          "allowed_change_roots": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Change Roots"
+          },
+          "forbidden_changes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Forbidden Changes"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/BlueprintTask"
+            },
+            "type": "array",
+            "title": "Tasks"
+          },
+          "acceptance_commands": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Acceptance Commands"
+          },
+          "standards_lock_ref": {
+            "type": "string",
+            "title": "Standards Lock Ref",
+            "default": "MATRIX_STANDARDS.lock"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "blueprint_id",
+          "candidate_id",
+          "name",
+          "slug",
+          "idea",
+          "quality_level",
+          "stack"
+        ],
+        "title": "BlueprintResult"
+      },
+      "BlueprintStack": {
+        "properties": {
+          "frontend": {
+            "type": "string",
+            "title": "Frontend"
+          },
+          "backend": {
+            "type": "string",
+            "title": "Backend"
+          },
+          "worker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker"
+          },
+          "database": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database"
+          },
+          "auth": {
+            "type": "string",
+            "title": "Auth",
+            "default": "none"
+          },
+          "deploy": {
+            "type": "string",
+            "title": "Deploy",
+            "default": "docker"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "frontend",
+          "backend"
+        ],
+        "title": "BlueprintStack"
+      },
+      "BlueprintTask": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "pattern": "^TASK-[0-9]{3}$",
+            "title": "Task Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "allowed_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Files"
+          },
+          "acceptance_criteria": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Acceptance Criteria"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "task_id",
+          "title"
+        ],
+        "title": "BlueprintTask"
+      },
+      "BuildType": {
+        "type": "string",
+        "enum": [
+          "app",
+          "agent",
+          "api"
+        ],
+        "title": "BuildType"
+      },
+      "BundleCleanupResponse": {
+        "properties": {
+          "deleted_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Deleted Count"
+          },
+          "deleted_bundle_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deleted Bundle Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "deleted_count"
+        ],
+        "title": "BundleCleanupResponse"
+      },
+      "BundleFile": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Path"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "control"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": true
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type",
+            "default": "text/plain"
+          },
+          "digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "BundleFile"
+      },
+      "BundleGenerationRequest": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version",
+            "default": "matrix.builder.bundle-generation/v1"
+          },
+          "idea_request": {
+            "$ref": "#/components/schemas/IdeaRequest"
+          },
+          "candidate_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
+          },
+          "preferred_coder": {
+            "$ref": "#/components/schemas/CoderId",
+            "default": "generic-ai-coder"
+          },
+          "persist": {
+            "type": "boolean",
+            "title": "Persist",
+            "default": false
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "idea_request"
+        ],
+        "title": "BundleGenerationRequest"
+      },
+      "BundleManifest": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version",
+            "default": "matrix.builder.bundle-manifest/v1"
+          },
+          "bundle_id": {
+            "type": "string",
+            "title": "Bundle Id"
+          },
+          "blueprint_id": {
+            "type": "string",
+            "title": "Blueprint Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BundleStatus",
+            "default": "ready"
+          },
+          "manifest_digest": {
+            "type": "string",
+            "title": "Manifest Digest"
+          },
+          "zip_digest": {
+            "type": "string",
+            "title": "Zip Digest"
+          },
+          "zip_size_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Zip Size Bytes"
+          },
+          "file_count": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "File Count"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/BundleFile"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "prompts_available": {
+            "items": {
+              "$ref": "#/components/schemas/CoderId"
+            },
+            "type": "array",
+            "title": "Prompts Available"
+          },
+          "standards": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Standards"
+          },
+          "storage_uri": {
+            "type": "string",
+            "title": "Storage Uri"
+          },
+          "checksums": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Checksums"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "bundle_id",
+          "blueprint_id",
+          "title",
+          "created_at",
+          "manifest_digest",
+          "zip_digest",
+          "zip_size_bytes",
+          "file_count",
+          "files",
+          "prompts_available",
+          "storage_uri"
+        ],
+        "title": "BundleManifest"
+      },
+      "BundleSaveRequest": {
+        "properties": {
+          "account_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Email"
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BundleSaveRequest"
+      },
+      "BundleSaveResponse": {
+        "properties": {
+          "bundle_id": {
+            "type": "string",
+            "title": "Bundle Id"
+          },
+          "saved": {
+            "type": "boolean",
+            "title": "Saved"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BundleStatus"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "bundle_id",
+          "saved",
+          "status",
+          "message"
+        ],
+        "title": "BundleSaveResponse"
+      },
+      "BundleStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "ready",
+          "expired",
+          "archived",
+          "saved"
+        ],
+        "title": "BundleStatus"
+      },
+      "BundleTreeNode": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": true
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "kind"
+        ],
+        "title": "BundleTreeNode"
+      },
+      "ChangedFile": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Path"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "added",
+              "modified",
+              "deleted",
+              "renamed"
+            ],
+            "title": "Status",
+            "default": "modified"
+          },
+          "digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest"
+          },
+          "previous_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Path"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "ChangedFile"
+      },
+      "CoderId": {
+        "type": "string",
+        "enum": [
+          "claude-code",
+          "codex-chatgpt",
+          "cursor",
+          "gitpilot",
+          "ibm-bob",
+          "generic-ai-coder"
+        ],
+        "title": "CoderId"
+      },
+      "DependencyChange": {
+        "properties": {
+          "ecosystem": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Ecosystem"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "added",
+              "updated",
+              "removed"
+            ],
+            "title": "Action",
+            "default": "added"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved",
+            "default": false
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ecosystem",
+          "name"
+        ],
+        "title": "DependencyChange"
+      },
+      "Goal": {
+        "type": "string",
+        "enum": [
+          "portfolio",
+          "startup-mvp",
+          "internal-tool",
+          "learning",
+          "open-source",
+          "enterprise"
+        ],
+        "title": "Goal"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IdeaConstraints": {
+        "properties": {
+          "preferred_stack": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preferred Stack"
+          },
+          "forbidden_stack": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Forbidden Stack"
+          },
+          "deployment_target": {
+            "type": "string",
+            "title": "Deployment Target",
+            "default": "docker"
+          },
+          "requires_auth": {
+            "type": "boolean",
+            "title": "Requires Auth",
+            "default": false
+          },
+          "data_sensitivity": {
+            "type": "string",
+            "title": "Data Sensitivity",
+            "default": "public"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "IdeaConstraints"
+      },
+      "IdeaIntent": {
+        "properties": {
+          "normalized_idea": {
+            "type": "string",
+            "title": "Normalized Idea"
+          },
+          "build_type": {
+            "$ref": "#/components/schemas/BuildType"
+          },
+          "goal": {
+            "$ref": "#/components/schemas/Goal"
+          },
+          "preferred_coder": {
+            "$ref": "#/components/schemas/CoderId"
+          },
+          "quality_level": {
+            "$ref": "#/components/schemas/QualityLevel",
+            "default": "standard"
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/IdeaConstraints"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "normalized_idea",
+          "build_type",
+          "goal",
+          "preferred_coder"
+        ],
+        "title": "IdeaIntent"
+      },
+      "IdeaMetadata": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "matrix-builder-web"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale",
+            "default": "en"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "IdeaMetadata"
+      },
+      "IdeaRequest": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version",
+            "default": "matrix.builder.idea/v1"
+          },
+          "idea": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 5,
+            "title": "Idea"
+          },
+          "build_type": {
+            "$ref": "#/components/schemas/BuildType",
+            "default": "app"
+          },
+          "goal": {
+            "$ref": "#/components/schemas/Goal",
+            "default": "startup-mvp"
+          },
+          "preferred_coder": {
+            "$ref": "#/components/schemas/CoderId",
+            "default": "generic-ai-coder"
+          },
+          "quality_level": {
+            "$ref": "#/components/schemas/QualityLevel",
+            "default": "standard"
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/IdeaConstraints"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/IdeaMetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "idea"
+        ],
+        "title": "IdeaRequest"
+      },
+      "MatrixBundle": {
+        "properties": {
+          "bundle_id": {
+            "type": "string",
+            "title": "Bundle Id"
+          },
+          "blueprint_id": {
+            "type": "string",
+            "title": "Blueprint Id",
+            "default": "bp_demo_standard"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BundleStatus",
+            "default": "ready"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "bundle_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bundle Url"
+          },
+          "download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Url"
+          },
+          "signed_download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed Download Url"
+          },
+          "manifest_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manifest Url"
+          },
+          "manifest_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manifest Digest"
+          },
+          "zip_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zip Digest"
+          },
+          "zip_size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zip Size Bytes"
+          },
+          "file_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Count"
+          },
+          "expires_in_seconds": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expires In Seconds",
+            "default": 172800
+          },
+          "persisted": {
+            "type": "boolean",
+            "title": "Persisted",
+            "default": false
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          },
+          "storage_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Uri"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/BundleFile"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "tree": {
+            "items": {
+              "$ref": "#/components/schemas/BundleTreeNode"
+            },
+            "type": "array",
+            "title": "Tree"
+          },
+          "prompts_available": {
+            "items": {
+              "$ref": "#/components/schemas/CoderId"
+            },
+            "type": "array",
+            "title": "Prompts Available"
+          },
+          "standards": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Standards"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/ValidationStatus",
+            "default": "not-run"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Links"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "bundle_id",
+          "title"
+        ],
+        "title": "MatrixBundle"
+      },
+      "PromptItem": {
+        "properties": {
+          "coder": {
+            "$ref": "#/components/schemas/CoderId"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "content": {
+            "type": "string",
+            "minLength": 20,
+            "title": "Content"
+          },
+          "contract_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Contract Files"
+          },
+          "allowed_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Files"
+          },
+          "validation_commands": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Validation Commands"
+          },
+          "hard_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hard Constraints"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "coder",
+          "label",
+          "path",
+          "content"
+        ],
+        "title": "PromptItem"
+      },
+      "PromptPack": {
+        "properties": {
+          "prompt_pack_id": {
+            "type": "string",
+            "title": "Prompt Pack Id"
+          },
+          "bundle_id": {
+            "type": "string",
+            "title": "Bundle Id"
+          },
+          "blueprint_id": {
+            "type": "string",
+            "title": "Blueprint Id"
+          },
+          "default_coder": {
+            "$ref": "#/components/schemas/CoderId"
+          },
+          "prompts": {
+            "items": {
+              "$ref": "#/components/schemas/PromptItem"
+            },
+            "type": "array",
+            "title": "Prompts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prompt_pack_id",
+          "bundle_id",
+          "blueprint_id",
+          "default_coder",
+          "prompts"
+        ],
+        "title": "PromptPack"
+      },
+      "PromptResponse": {
+        "properties": {
+          "coder": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoderId"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Coder"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "default": "Controlled implementation prompt"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "default": "coder-prompts/generic-ai-coder.md"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "bundle_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bundle Id"
+          },
+          "bundle_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bundle Url"
+          },
+          "task_id": {
+            "type": "string",
+            "title": "Task Id",
+            "default": "TASK-001"
+          },
+          "contract_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Contract Files"
+          },
+          "allowed_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Files"
+          },
+          "validation_commands": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Validation Commands"
+          },
+          "hard_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hard Constraints"
+          },
+          "handoff_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handoff Mode"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "coder",
+          "prompt",
+          "contract_files"
+        ],
+        "title": "PromptResponse"
+      },
+      "PublicationRequest": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version",
+            "default": "matrix.builder.publication/v1"
+          },
+          "bundle_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bundle Id"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "default": "matrixhub"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": true
+          },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility",
+            "default": "public"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "default": {}
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PublicationRequest"
+      },
+      "PublicationResponse": {
+        "properties": {
+          "publication_id": {
+            "type": "string",
+            "title": "Publication Id",
+            "default": "pub_not_connected"
+          },
+          "bundle_id": {
+            "type": "string",
+            "title": "Bundle Id",
+            "default": "bundle_demo"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "default": "matrixhub"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": true
+          },
+          "accepted": {
+            "type": "boolean",
+            "title": "Accepted",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "matrixhub_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matrixhub Slug"
+          },
+          "required_artifacts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Artifacts",
+            "default": []
+          },
+          "missing_artifacts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Artifacts",
+            "default": []
+          },
+          "validation_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Status"
+          },
+          "validation_report_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Report Id"
+          },
+          "trust_status": {
+            "type": "string",
+            "title": "Trust Status",
+            "default": "dry-run"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "message"
+        ],
+        "title": "PublicationResponse"
+      },
+      "QualityLevel": {
+        "type": "string",
+        "enum": [
+          "starter",
+          "standard",
+          "production",
+          "enterprise"
+        ],
+        "title": "QualityLevel"
+      },
+      "QuotaStatus": {
+        "properties": {
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "used": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Used"
+          },
+          "remaining": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Remaining"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "actor",
+          "period",
+          "limit",
+          "used",
+          "remaining"
+        ],
+        "title": "QuotaStatus"
+      },
+      "SessionResponse": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "plan": {
+            "type": "string",
+            "title": "Plan"
+          },
+          "expires_at": {
+            "type": "integer",
+            "title": "Expires At"
+          },
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "plan",
+          "expires_at",
+          "access_token"
+        ],
+        "title": "SessionResponse"
+      },
+      "SignedBundleUrlResponse": {
+        "properties": {
+          "bundle_id": {
+            "type": "string",
+            "title": "Bundle Id"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "expires_in_seconds": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expires In Seconds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "bundle_id",
+          "url",
+          "expires_at",
+          "expires_in_seconds"
+        ],
+        "title": "SignedBundleUrlResponse"
+      },
+      "StandardsStatus": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest"
+          },
+          "rules_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "version",
+          "status"
+        ],
+        "title": "StandardsStatus"
+      },
+      "UserPlan": {
+        "properties": {
+          "plan": {
+            "type": "string",
+            "title": "Plan"
+          },
+          "bundle_limit": {
+            "type": "integer",
+            "title": "Bundle Limit"
+          },
+          "requires_signup": {
+            "type": "boolean",
+            "title": "Requires Signup"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan",
+          "bundle_limit",
+          "requires_signup"
+        ],
+        "title": "UserPlan"
+      },
+      "ValidationArtifact": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Kind"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Path"
+          },
+          "digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "path"
+        ],
+        "title": "ValidationArtifact"
+      },
+      "ValidationCheck": {
+        "properties": {
+          "check_id": {
+            "type": "string",
+            "title": "Check Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "skipped"
+            ],
+            "title": "Status"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "check_id",
+          "status"
+        ],
+        "title": "ValidationCheck"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ValidationReport": {
+        "properties": {
+          "report_id": {
+            "type": "string",
+            "title": "Report Id",
+            "default": "validation_not_run"
+          },
+          "bundle_id": {
+            "type": "string",
+            "title": "Bundle Id",
+            "default": "bundle_demo"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ValidationStatus",
+            "default": "not-run"
+          },
+          "score": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationViolation"
+            },
+            "type": "array",
+            "title": "Violations"
+          },
+          "repair_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repair Prompt"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationCheck"
+            },
+            "type": "array",
+            "title": "Checks"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved",
+            "default": false
+          },
+          "matrixhub_publishable": {
+            "type": "boolean",
+            "title": "Matrixhub Publishable",
+            "default": false
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "score"
+        ],
+        "title": "ValidationReport"
+      },
+      "ValidationRequest": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version",
+            "default": "matrix.builder.validation-request/v1"
+          },
+          "bundle_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bundle Id"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "bundle",
+              "patch",
+              "repository",
+              "dry-run"
+            ],
+            "title": "Mode",
+            "default": "patch"
+          },
+          "changed_files": {
+            "items": {
+              "$ref": "#/components/schemas/ChangedFile"
+            },
+            "type": "array",
+            "title": "Changed Files"
+          },
+          "dependency_changes": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyChange"
+            },
+            "type": "array",
+            "title": "Dependency Changes"
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationArtifact"
+            },
+            "type": "array",
+            "title": "Artifacts"
+          },
+          "standards_lock_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Standards Lock Digest"
+          },
+          "matrix_blueprint_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matrix Blueprint Digest"
+          },
+          "repository_archive_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository Archive Ref"
+          },
+          "patch_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patch Ref"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ValidationRequest",
+        "description": "A generated repo or patch submitted for Matrix contract validation.\n\nThis accepts references instead of raw archives so the API can support browser uploads,\nobject-storage uploads, GitHub PR refs, or local dev fixtures without changing the contract."
+      },
+      "ValidationStatus": {
+        "type": "string",
+        "enum": [
+          "not-run",
+          "approved",
+          "needs-repair",
+          "rejected"
+        ],
+        "title": "ValidationStatus"
+      },
+      "ValidationViolation": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "title": "Severity"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "remediation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remediation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rule_id",
+          "severity",
+          "message"
+        ],
+        "title": "ValidationViolation"
+      }
+    }
+  }
+}

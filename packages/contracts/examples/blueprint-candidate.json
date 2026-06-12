@@ -1,0 +1,29 @@
+{
+  "candidate_id": "candidate-standard-github-repo-intelligence",
+  "title": "GitHub Repo Intelligence Agent",
+  "slug": "github-repo-intelligence-agent",
+  "summary": "A controlled full-stack agent that analyzes GitHub repositories and returns architecture, risk, and improvement reports.",
+  "quality_level": "standard",
+  "recommended": true,
+  "stack": [
+    "Next.js",
+    "FastAPI",
+    "PostgreSQL",
+    "Docker"
+  ],
+  "estimated_files": 31,
+  "estimated_effort": "about one week",
+  "difficulty": "medium",
+  "standards_profile": "standard",
+  "rationale": "Balanced enough for a real developer portfolio while still easy to implement in phases.",
+  "generator_actions": [
+    "create_control_files",
+    "create_prompt_pack",
+    "create_validation_plan"
+  ],
+  "validation_checks": [
+    "required_files_present",
+    "forbidden_changes_absent",
+    "dependency_drift_absent"
+  ]
+}

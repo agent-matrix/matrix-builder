@@ -1,0 +1,16 @@
+# Generated in Batch 1. Keep permissions least-privilege and protect workflow edits with CODEOWNERS.
+
+name: Publish Docs Placeholder
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs-placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Docs publishing arrives in Batch 9."

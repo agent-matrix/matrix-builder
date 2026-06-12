@@ -1,0 +1,57 @@
+{
+  "bundle_id": "bundle_demo_standard",
+  "blueprint_id": "bp_github_repo_intelligence_standard_001",
+  "status": "ready",
+  "title": "GitHub Repo Intelligence Agent Matrix Bundle",
+  "created_at": "2026-06-12T12:00:00Z",
+  "expires_at": "2026-06-14T12:00:00Z",
+  "bundle_url": "https://api.ruslanmv.com/v1/matrix-bundles/bundle_demo_standard",
+  "download_url": "https://api.ruslanmv.com/v1/matrix-bundles/bundle_demo_standard/download",
+  "manifest_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "expires_in_seconds": 172800,
+  "files": [
+    {
+      "path": "README.md",
+      "kind": "doc",
+      "required": true,
+      "content_type": "text/markdown"
+    },
+    {
+      "path": "MATRIX_BLUEPRINT.yaml",
+      "kind": "control",
+      "required": true,
+      "content_type": "application/yaml"
+    },
+    {
+      "path": "MATRIX_STANDARDS.lock",
+      "kind": "control",
+      "required": true,
+      "content_type": "application/yaml"
+    },
+    {
+      "path": "coder-prompts/gitpilot.md",
+      "kind": "prompt",
+      "required": true,
+      "content_type": "text/markdown"
+    }
+  ],
+  "prompts_available": [
+    "claude-code",
+    "codex-chatgpt",
+    "cursor",
+    "gitpilot",
+    "ibm-bob",
+    "generic-ai-coder"
+  ],
+  "standards": [
+    "RMD-001",
+    "RMD-002",
+    "GHA-001",
+    "DOCKER-001",
+    "AGENT-001"
+  ],
+  "validation": "not-run",
+  "links": {
+    "self": "/api/v1/bundles/bundle_demo_standard"
+  }
+}

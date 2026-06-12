@@ -1,0 +1,21 @@
+# Generated in Batch 1. Keep permissions least-privilege and protect workflow edits with CODEOWNERS.
+
+name: E2E Placeholder
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/web/**'
+      - 'services/api/**'
+      - 'tests/e2e/**'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "E2E tests are scaffolded; Playwright implementation starts after Batch 2."

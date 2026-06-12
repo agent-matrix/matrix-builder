@@ -1,0 +1,39 @@
+name: matrix-builder
+services:
+  api:
+    build: { context: ., dockerfile: services/api/Dockerfile }
+    env_file: .env.example
+    environment: { APP_ENV: production, ENABLE_HSTS: "true" }
+    ports: ["8000:8000"]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    depends_on: [postgres, redis, minio]
+  web:
+    build: { context: ., dockerfile: infra/docker/web.Dockerfile }
+    environment: { NEXT_PUBLIC_API_BASE_URL: http://localhost:8000 }
+    ports: ["3000:3000"]
+    security_opt: [no-new-privileges:true]
+    depends_on: [api]
+  worker:
+    build: { context: ., dockerfile: workers/Dockerfile }
+    env_file: .env.example
+    environment: { APP_ENV: production }
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    depends_on: [postgres, redis, minio]
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: matrix_builder, POSTGRES_USER: matrix_builder, POSTGRES_PASSWORD: matrix_builder_dev_password }
+    volumes: [matrix_builder_postgres:/var/lib/postgresql/data, ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro]
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes: [./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro]
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment: { MINIO_ROOT_USER: matrix_builder, MINIO_ROOT_PASSWORD: matrix_builder_dev_password }
+    volumes: [matrix_builder_minio:/data]
+volumes: { matrix_builder_postgres: {}, matrix_builder_minio: {} }

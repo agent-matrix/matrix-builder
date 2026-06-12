@@ -1,0 +1,66 @@
+{
+  "schema_version": "matrix.builder.bundle-manifest/v1",
+  "bundle_id": "bundle_demo_standard",
+  "blueprint_id": "bp_github_repo_intelligence_standard_001",
+  "title": "GitHub Repo Intelligence Agent Matrix Bundle",
+  "created_at": "2026-06-12T12:00:00Z",
+  "expires_at": "2026-06-14T12:00:00Z",
+  "status": "ready",
+  "manifest_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "zip_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "zip_size_bytes": 4096,
+  "file_count": 4,
+  "files": [
+    {
+      "path": "README.md",
+      "kind": "doc",
+      "required": true,
+      "content_type": "text/markdown",
+      "size_bytes": 128
+    },
+    {
+      "path": "MATRIX_BLUEPRINT.yaml",
+      "kind": "control",
+      "required": true,
+      "content_type": "application/yaml",
+      "size_bytes": 128
+    },
+    {
+      "path": "MATRIX_STANDARDS.lock",
+      "kind": "control",
+      "required": true,
+      "content_type": "application/yaml",
+      "size_bytes": 128
+    },
+    {
+      "path": "coder-prompts/gitpilot.md",
+      "kind": "prompt",
+      "required": true,
+      "content_type": "text/markdown",
+      "size_bytes": 128
+    }
+  ],
+  "prompts_available": [
+    "claude-code",
+    "codex-chatgpt",
+    "cursor",
+    "gitpilot",
+    "ibm-bob",
+    "generic-ai-coder"
+  ],
+  "standards": [
+    "RMD-001",
+    "RMD-002",
+    "GHA-001",
+    "DOCKER-001",
+    "AGENT-001"
+  ],
+  "storage_uri": "local://bundles/bundle_demo_standard/bundle_demo_standard.zip",
+  "checksums": {
+    "README.md": "sha256:cccccccccccccccccccccccccccccccc"
+  },
+  "metadata": {
+    "persisted": false,
+    "preferred_coder": "gitpilot"
+  }
+}

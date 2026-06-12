@@ -1,0 +1,14 @@
+name: Security Scan
+on: [pull_request]
+permissions: { contents: read, security-events: write }
+jobs:
+  security-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: python scripts/check_no_secrets.py
+      - run: python scripts/security_scan.py
+      - run: python scripts/generate_sbom.py
+      - run: python scripts/generate_checksums.py

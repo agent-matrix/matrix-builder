@@ -1,0 +1,58 @@
+schema_version: 1
+blueprint_id: mb_example_github_repo_intelligence_standard
+name: GitHub Repo Intelligence Agent
+slug: github-repo-intelligence-agent
+quality_level: standard
+idea: Analyze a public GitHub repository and produce architecture, risk, and improvement reports.
+stack:
+  frontend: nextjs
+  backend: fastapi
+  worker: python
+  database: sqlite
+pages:
+  - /
+  - /analyze
+  - /report/:id
+api_routes:
+  - method: GET
+    path: /api/v1/health
+  - method: POST
+    path: /api/v1/repos/analyze
+  - method: GET
+    path: /api/v1/reports/{report_id}
+required_files:
+  - README.md
+  - MATRIX_BLUEPRINT.yaml
+  - MATRIX_STANDARDS.lock
+  - MATRIX_TASKS.md
+  - MATRIX_ALLOWED_CHANGES.md
+  - MATRIX_ACCEPTANCE_CRITERIA.md
+  - MATRIX_VALIDATION.md
+  - docs/architecture.md
+  - docs/security.md
+  - docs/standards-report.md
+allowed_change_roots:
+  - frontend/
+  - backend/
+  - worker/
+  - tests/
+forbidden_changes:
+  - MATRIX_BLUEPRINT.yaml
+  - MATRIX_STANDARDS.lock
+  - .github/workflows/
+  - deploy/
+tasks:
+  - id: TASK-001
+    title: Implement repository analysis endpoint
+    allowed_files:
+      - backend/app/api/repos.py
+      - backend/tests/test_repos_api.py
+  - id: TASK-002
+    title: Build analyze page
+    allowed_files:
+      - frontend/app/analyze/page.tsx
+      - frontend/components/repo-form.tsx
+validation_commands:
+  - ruff check backend/
+  - pytest -q
+  - npm run build

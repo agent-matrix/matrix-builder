@@ -1,0 +1,72 @@
+{
+  "topic": {
+    "id": "ai-agents",
+    "name": "AI Agents and Agentic Workflows",
+    "summary": "Systems that plan, use tools, call APIs, collaborate, and complete multi-step tasks.",
+    "why_follow": "Agent systems are becoming a practical interface for automation, enterprise workflows, coding, research, and multi-agent orchestration.",
+    "signals": {
+      "github_activity": 96,
+      "github_growth": 94,
+      "huggingface_activity": 92,
+      "news_mentions": 88,
+      "job_demand": 85,
+      "community_activity": 84,
+      "local_relevance": 82,
+      "project_potential": 96,
+      "career_value": 95,
+      "learning_accessibility": 78,
+      "durability": 90,
+      "ecosystem_fit": 99
+    },
+    "starter_actions": [
+      "Build a tool-using assistant",
+      "Study agent orchestration",
+      "Connect an agent to a public API"
+    ],
+    "study_plan": [
+      "Tool calling",
+      "Agent orchestration",
+      "Memory and retrieval",
+      "Evaluation",
+      "Governance and safety"
+    ],
+    "project_ideas": [
+      "Local trend scout agent",
+      "Agent workflow dashboard",
+      "Agent evaluator MCP server"
+    ],
+    "skills": [
+      "Python",
+      "FastAPI",
+      "LangGraph",
+      "MCP",
+      "RAG",
+      "Docker"
+    ],
+    "risks": [
+      "Frameworks change quickly",
+      "Production reliability requires evaluation",
+      "Autonomy needs governance"
+    ],
+    "sources": [
+      {
+        "name": "GitHub",
+        "type": "developer_activity"
+      },
+      {
+        "name": "Hugging Face",
+        "type": "ai_builder_activity"
+      },
+      {
+        "name": "News/RSS",
+        "type": "market_signal"
+      }
+    ],
+    "trust": {
+      "score": 0.91,
+      "label": "High confidence",
+      "hype_risk": 0.22
+    }
+  },
+  "deep_dive_url": "/api/v1/topics/ai-agents/deep-dive"
+}
