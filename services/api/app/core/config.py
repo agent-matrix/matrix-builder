@@ -49,6 +49,10 @@ class Settings:
     supabase_jwt_audience: str = "authenticated"
     supabase_storage_bucket: str = "matrix-bundles"
     google_client_id: str = ""
+    resend_api_key: str = ""
+    email_from: str = "Matrix Builder <onboarding@resend.dev>"
+    public_app_url: str = "https://builder.matrixhub.io"
+    email_link_ttl_seconds: int = 900
     metrics_enabled: bool = True
     otel_enabled: bool = False
     otel_service_name: str = "matrix-builder-api"
@@ -80,5 +84,5 @@ def get_settings() -> Settings:
         signed_url_ttl_seconds=int(os.getenv('SIGNED_URL_TTL_SECONDS','172800')), signed_url_secret=os.getenv('SIGNED_URL_SECRET','dev-only-change-me'), guest_bundles_per_day=int(os.getenv('GUEST_BUNDLES_PER_DAY','3')), free_bundles_per_month=int(os.getenv('FREE_BUNDLES_PER_MONTH','20')), guest_bundle_ttl_seconds=int(os.getenv('GUEST_BUNDLE_TTL_SECONDS','172800')), free_bundle_ttl_seconds=int(os.getenv('FREE_BUNDLE_TTL_SECONDS','2592000')),
         storage_backend=os.getenv('STORAGE_BACKEND','local'), storage_root=os.getenv('STORAGE_ROOT','.local/matrix-builder-storage'), public_api_base_url=os.getenv('PUBLIC_API_BASE_URL','http://localhost:8000/api/v1'),
         database_url=os.getenv('DATABASE_URL',''), db_pool_size=int(os.getenv('DB_POOL_SIZE','5')), db_max_overflow=int(os.getenv('DB_MAX_OVERFLOW','2')),
-        supabase_jwt_secret=os.getenv('MB_JWT_SECRET') or os.getenv('SUPABASE_JWT_SECRET','dev-only-change-me'), supabase_jwt_algorithm=os.getenv('MB_JWT_ALGORITHM') or os.getenv('SUPABASE_JWT_ALGORITHM','HS256'), supabase_jwt_audience=os.getenv('MB_JWT_AUDIENCE') or os.getenv('SUPABASE_JWT_AUDIENCE','authenticated'), supabase_storage_bucket=os.getenv('SUPABASE_STORAGE_BUCKET','matrix-bundles'), google_client_id=os.getenv('GOOGLE_CLIENT_ID',''),
+        supabase_jwt_secret=os.getenv('MB_JWT_SECRET') or os.getenv('SUPABASE_JWT_SECRET','dev-only-change-me'), supabase_jwt_algorithm=os.getenv('MB_JWT_ALGORITHM') or os.getenv('SUPABASE_JWT_ALGORITHM','HS256'), supabase_jwt_audience=os.getenv('MB_JWT_AUDIENCE') or os.getenv('SUPABASE_JWT_AUDIENCE','authenticated'), supabase_storage_bucket=os.getenv('SUPABASE_STORAGE_BUCKET','matrix-bundles'), google_client_id=os.getenv('GOOGLE_CLIENT_ID',''), resend_api_key=os.getenv('RESEND_API_KEY',''), email_from=os.getenv('EMAIL_FROM','Matrix Builder <onboarding@resend.dev>'), public_app_url=os.getenv('PUBLIC_APP_URL','https://builder.matrixhub.io'), email_link_ttl_seconds=int(os.getenv('EMAIL_LINK_TTL_SECONDS','900')),
         metrics_enabled=_bool('METRICS_ENABLED','true'), otel_enabled=_bool('OTEL_ENABLED','false'), otel_service_name=os.getenv('OTEL_SERVICE_NAME','matrix-builder-api'), otel_exporter_otlp_endpoint=os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT','http://otel-collector:4317'), audit_log_path=os.getenv('AUDIT_LOG_PATH','.local/audit/audit-events.jsonl'), json_logs=_bool('JSON_LOGS','true'), log_level=os.getenv('LOG_LEVEL','INFO'))

@@ -1,4 +1,4 @@
-# Sign in with Google + production PostgreSQL (Aiven)
+# Sign in (Google + passwordless email) + production PostgreSQL (Aiven)
 
 How "Sign in with Google" works in Matrix Builder, exactly what to put in the Google Cloud
 Console, and the environment variables to set on the Hugging Face Space (and Vercel) to wire
@@ -89,9 +89,43 @@ The UI discovers the client id from the backend at runtime, so nothing is requir
 it at build time instead (one less request), set **`NEXT_PUBLIC_GOOGLE_CLIENT_ID`** in the
 Vercel project. For the HF image you can pass `--build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID=…`.
 
+## Passwordless email sign-in (Resend) — and "password recovery"
+
+Matrix Builder has **no passwords**. The sign-in modal offers **Continue with Google** *and*
+**Continue with email**. The email path is a magic link:
+
+```
+Enter email  →  POST /api/v1/auth/email/request
+   → backend mints a 15-min signed token, emails a confirm link via Resend
+User clicks link  →  /auth/verify?token=…  →  POST /api/v1/auth/email/verify
+   → backend verifies the token, mints the session JWT  →  signed in
+```
+
+**There is nothing to "recover".** Because access is proven by your inbox, the recovery flow
+*is* the sign-in flow: if you can't get in, request a new link. No password store, no reset
+form, no password hashes to leak — the modern, more secure pattern.
+
+### Where to put the Resend API key on Hugging Face
+
+**Space → Settings → Variables and secrets:**
+
+| Key | Type | Value |
+|---|---|---|
+| `RESEND_API_KEY` | **Secret** | your Resend key, e.g. `re_xxxxxxxx` (unset = dev mode: the link is only logged, not sent) |
+| `EMAIL_FROM` | Variable | a **verified** Resend sender, e.g. `Matrix Builder <noreply@matrixhub.io>` (or `onboarding@resend.dev` while testing) |
+| `PUBLIC_APP_URL` | Variable | the public origin the magic link points to — `https://ruslanmv-matrix-builder.hf.space` (HF) or `https://builder.matrixhub.io` (Vercel) |
+
+Get the key at **resend.com → API Keys → Create**. To send from `@matrixhub.io`, verify the
+domain in Resend (Domains → Add) — your DNS already has the `resend._domainkey` + SPF records
+for `matrixhub.io`, so that part is done; point `EMAIL_FROM` at an address on the verified
+domain. The backend calls Resend's REST API with stdlib only (no extra dependency).
+
 ## What's implemented
 
-- Backend: `POST /api/v1/auth/google` verifies the Google ID token and mints the session JWT;
-  `GET /api/v1/auth/status` reports `google_client_id`. (`app/core/google_auth.py`)
-- Frontend: a **Sign in** button (top bar) opens a Google sign-in modal; on success the user
-  chip + **Sign out** appear. Hidden automatically until `GOOGLE_CLIENT_ID` is set.
+- Backend: `POST /api/v1/auth/google` (Google ID token) and `POST /api/v1/auth/email/request`
+  + `POST /api/v1/auth/email/verify` (magic link) both mint the same session JWT;
+  `GET /api/v1/auth/status` reports `google_client_id` + `email_enabled`.
+  (`app/core/google_auth.py`, `app/core/email_auth.py`)
+- Frontend: a **Sign in** button (top bar) opens the "Save your Matrix Bundle" modal with
+  **Continue with Google** + **Continue with email**; the email link lands on `/auth/verify`,
+  stores the session, and returns to the app. The user chip + **Sign out** then appear.

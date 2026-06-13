@@ -489,6 +489,7 @@ function LandingHero({ idea, setIdea, generate }: { idea: string; setIdea: (valu
               <a href="#what">Examples</a>
               <a href="#trust">Trust</a>
               <a className="gh" href="https://github.com/ruslanmv" target="_blank" rel="noreferrer"><MatrixIcon size={18}>{icons.git}</MatrixIcon>GitHub</a>
+              <AuthControls />
             </nav>
           </div>
         </header>
