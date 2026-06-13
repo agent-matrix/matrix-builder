@@ -81,9 +81,20 @@ jobs:
           fi
           git config --global user.name "matrix-builder-bot"
           git config --global user.email "matrix-builder-bot@users.noreply.github.com"
+          # Hugging Face occasionally rate-limits git over HTTPS (HTTP 429), especially right
+          # after a manual push / rebuild. Retry HF git operations with exponential backoff.
+          retry() {
+            local n=0 max=5 delay=10
+            until "$@"; do
+              n=$((n+1))
+              if [ "$n" -ge "$max" ]; then echo "::error::'$*' failed after $max attempts"; return 1; fi
+              echo "attempt $n failed (likely HF 429); retrying in ${delay}s…"; sleep "$delay"; delay=$((delay*2))
+            done
+          }
           SPACE_URL="https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE_OWNER}/${HF_SPACE_NAME}"
           SDIR="$RUNNER_TEMP/space-repo"
-          git clone --depth 1 "$SPACE_URL" "$SDIR"
+          rm -rf "$SDIR"
+          retry git clone --depth 1 "$SPACE_URL" "$SDIR"
           (
             cd "$SDIR"
             git ls-files -z | xargs -0 rm -f || true
@@ -97,7 +108,7 @@ jobs:
             git commit -m "deploy: matrix-builder@${GITHUB_SHA::12}
 
             Source: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
-            git push origin HEAD:main
+            retry git push origin HEAD:main
           )
 
       - name: Summary
