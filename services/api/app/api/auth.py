@@ -216,6 +216,31 @@ def update_account(payload: UpdateAccountRequest, claims: dict = Depends(current
     return AuthUser(email=email, name=name)
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post('/auth/password/change')
+def change_password(payload: ChangePasswordRequest, claims: dict = Depends(current_claims)) -> dict[str, object]:
+    email = claims.get("email")
+    if not email:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not signed in.")
+    acc = get_account_store().get_by_email(str(email))
+    if not acc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
+    if not acc.password_hash:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This account signs in with Google — use “Forgot password” to set one.")
+    if not verify_password(payload.current_password, acc.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect.")
+    try:
+        new_hash = hash_password(payload.new_password)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    get_account_store().set_password(str(email), new_hash)
+    return {"changed": True, "message": "Password updated."}
+
+
 # ---- delete account (GDPR: remove account + all owned data) --------------------------------
 @router.delete('/auth/account')
 def delete_account(claims: dict = Depends(current_claims)) -> dict[str, object]:

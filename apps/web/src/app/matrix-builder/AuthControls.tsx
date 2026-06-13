@@ -126,6 +126,11 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
   const [settingsName, setSettingsName] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState<string | null>(null);
+  const [pwCur, setPwCur] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwConf, setPwConf] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
   const btnRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
 
@@ -238,6 +243,24 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
     finally { setSavingName(false); }
   }
 
+  async function savePassword() {
+    if (pwBusy) return;
+    if (pwNew.length < 8) return setPwMsg("Use a new password of at least 8 characters.");
+    if (pwNew !== pwConf) return setPwMsg("New passwords don't match.");
+    setPwBusy(true); setPwMsg(null);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/v1/auth/password/change`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ current_password: pwCur, new_password: pwNew }),
+      });
+      if (!res.ok) throw new Error(await detail(res, "Couldn't change password."));
+      setPwCur(""); setPwNew(""); setPwConf("");
+      setPwMsg("Password updated.");
+    } catch (e) { setPwMsg(e instanceof Error ? e.message : "Couldn't change password."); }
+    finally { setPwBusy(false); }
+  }
+
   if (user && !open) {
     const label = user.name || user.email || "Account";
     return (
@@ -269,26 +292,82 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
 
         {settingsOpen && (
           <div className="auth-scrim" role="dialog" aria-modal="true" aria-label="Settings" onMouseDown={(e) => { if (e.target === e.currentTarget) setSettingsOpen(false); }}>
-            <div className="auth-card auth-card-wide">
+            <div className="settings-card">
               <button className="auth-x" type="button" aria-label="Close" onClick={() => setSettingsOpen(false)}><Ic d={<path d="M6 6l12 12M18 6L6 18" />} size={16} /></button>
-              <h2 className="auth-h">Settings</h2>
-              <p className="auth-sub">Manage your account.</p>
 
-              <div className="set-label">Email</div>
-              <div className="set-readonly">{user.email}</div>
-
-              <div className="set-label">Display name</div>
-              <AuthField icon={I.user} type="text" placeholder="Your name" value={settingsName} onChange={(v) => { setSettingsName(v); setSettingsMsg(null); }} onEnter={saveName} />
-              <button className="auth-email" type="button" disabled={savingName} onClick={saveName}>{savingName ? "Saving…" : "Save changes"}</button>
-              {settingsMsg && <div className={settingsMsg === "Saved." ? "set-ok" : "auth-err"}>{settingsMsg}</div>}
-
-              <div className="set-danger">
-                <div className="set-danger-h">Danger zone</div>
-                <div className="set-danger-row">
-                  <div><div className="set-danger-t">Delete account</div><div className="set-danger-d">Permanently delete your account and all your data.</div></div>
-                  <button className="auth-danger set-danger-btn" type="button" onClick={() => { setSettingsOpen(false); setDelText(""); setDelError(null); setConfirmDelete(true); }}>Delete account</button>
+              <div className="settings-head">
+                <div>
+                  <p className="settings-eyebrow">Account</p>
+                  <h2 className="settings-title">Settings</h2>
+                  <p className="settings-subtitle">Manage your profile and account preferences.</p>
                 </div>
+                <div className="settings-avatar">{initials(user)}</div>
               </div>
+
+              {/* Profile */}
+              <section className="settings-section">
+                <div className="settings-section-head"><h3>Profile</h3><p>Your public account information.</p></div>
+                <div className="settings-row">
+                  <div><div className="settings-label">Email address</div><div className="settings-value">{user.email}</div></div>
+                  <span className="settings-badge">Verified</span>
+                </div>
+                <div className="settings-field-group">
+                  <label className="settings-label" htmlFor="settings-display-name">Display name</label>
+                  <div className="settings-input-wrap">
+                    <span className="settings-input-icon"><Ic d={I.user} size={17} /></span>
+                    <input id="settings-display-name" className="settings-input" value={settingsName} placeholder="Your name"
+                      onChange={(e) => { setSettingsName(e.target.value); setSettingsMsg(null); }}
+                      onKeyDown={(e) => e.key === "Enter" && saveName()} />
+                  </div>
+                </div>
+                {settingsMsg && <div className={settingsMsg === "Saved." ? "settings-success" : "auth-err"}>{settingsMsg}</div>}
+                <div className="settings-actions">
+                  <button className="settings-primary" type="button" disabled={savingName} onClick={saveName}>{savingName ? "Saving…" : "Save changes"}</button>
+                </div>
+              </section>
+
+              {/* Security — change password */}
+              <section className="settings-section">
+                <div className="settings-section-head"><h3>Security</h3><p>Change your password. (Google accounts use “Forgot password” to set one.)</p></div>
+                <div className="settings-field-group">
+                  <label className="settings-label" htmlFor="pw-cur">Current password</label>
+                  <div className="settings-input-wrap"><span className="settings-input-icon"><Ic d={I.lock} size={17} /></span>
+                    <input id="pw-cur" className="settings-input" type="password" autoComplete="current-password" value={pwCur} onChange={(e) => { setPwCur(e.target.value); setPwMsg(null); }} /></div>
+                </div>
+                <div className="settings-field-group">
+                  <label className="settings-label" htmlFor="pw-new">New password</label>
+                  <div className="settings-input-wrap"><span className="settings-input-icon"><Ic d={I.lock} size={17} /></span>
+                    <input id="pw-new" className="settings-input" type="password" autoComplete="new-password" placeholder="min 8 characters" value={pwNew} onChange={(e) => { setPwNew(e.target.value); setPwMsg(null); }} /></div>
+                </div>
+                <div className="settings-field-group">
+                  <label className="settings-label" htmlFor="pw-conf">Confirm new password</label>
+                  <div className="settings-input-wrap"><span className="settings-input-icon"><Ic d={I.lock} size={17} /></span>
+                    <input id="pw-conf" className="settings-input" type="password" autoComplete="new-password" value={pwConf} onChange={(e) => { setPwConf(e.target.value); setPwMsg(null); }} onKeyDown={(e) => e.key === "Enter" && savePassword()} /></div>
+                </div>
+                {pwMsg && <div className={pwMsg === "Password updated." ? "settings-success" : "auth-err"}>{pwMsg}</div>}
+                <div className="settings-actions">
+                  <button className="settings-primary" type="button" disabled={pwBusy || !pwCur || !pwNew || !pwConf} onClick={savePassword}>{pwBusy ? "Updating…" : "Update password"}</button>
+                </div>
+              </section>
+
+              {/* Account access */}
+              <section className="settings-section">
+                <div className="settings-section-head"><h3>Account access</h3><p>Review how you access Matrix Builder.</p></div>
+                <div className="settings-row">
+                  <div><div className="settings-label">Sign-in method</div><div className="settings-value">Email or Google account</div></div>
+                  <span className="settings-badge muted">Active</span>
+                </div>
+              </section>
+
+              {/* Danger zone */}
+              <section className="settings-danger-zone">
+                <div>
+                  <div className="settings-danger-eyebrow">Danger zone</div>
+                  <h3>Delete account</h3>
+                  <p>Permanently delete your account, builds, bundles, and validation history. This action cannot be undone.</p>
+                </div>
+                <button className="settings-danger-button" type="button" onClick={() => { setSettingsOpen(false); setDelText(""); setDelError(null); setConfirmDelete(true); }}>Delete account</button>
+              </section>
             </div>
           </div>
         )}
