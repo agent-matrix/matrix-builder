@@ -1055,15 +1055,30 @@ button,select,a{-webkit-tap-highlight-color:transparent;touch-action:manipulatio
 }
 
 /* ===========================================================================
-   Auth modal — wizard tabs, steps, errors, Google shell (dark-page fix)
+   Auth modal — view-based screens (signin/signup/verify/forgot/success)
    =========================================================================== */
-.auth-tabs{display:flex;gap:6px;background:rgba(255,255,255,.04);border:1px solid var(--bd-dark);border-radius:12px;padding:4px;margin-bottom:18px}
-.auth-tabs button{flex:1;border:0;background:transparent;color:#9fbdb0;font-weight:700;font-size:13.5px;padding:9px 10px;border-radius:9px;cursor:pointer;transition:.15s}
-.auth-tabs button.on{background:rgba(34,200,120,.16);color:#fff;box-shadow:0 0 18px -8px rgba(34,200,120,.7)}
-.auth-step{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--grn-bright);margin-bottom:6px}
-.auth-err{color:#ff9b9b;font-size:13px;margin:10px 2px 0;line-height:1.4}
-.auth-ghost{width:100%;margin-top:10px;background:transparent;border:1px solid var(--bd-dark);color:#cfe0d6;border-radius:12px;min-height:46px;font-weight:600;font-size:14px;cursor:pointer;transition:.15s}
+.auth-h{font-family:var(--serif);font-size:30px;font-weight:600;color:#fff;letter-spacing:-.02em;line-height:1.05;margin:2px 0 0}
+.auth-sub{color:#a7c9b8;font-size:14.5px;line-height:1.55;margin:9px 0 22px}
+.auth-input{position:relative;display:flex;align-items:center;margin-top:11px}
+.auth-input .auth-input-ic{position:absolute;left:15px;color:#6f9482;display:flex;pointer-events:none}
+.auth-input .auth-field{padding-left:44px}
+.auth-input .auth-eye{position:absolute;right:8px;width:34px;height:34px;display:grid;place-items:center;background:transparent;border:0;color:#7f9a8c;cursor:pointer;border-radius:8px}
+.auth-input .auth-eye:hover{color:#cfe0d6}
+.auth-secondary{display:flex;justify-content:flex-end;margin:11px 2px 0}
+.auth-check{display:flex;align-items:center;gap:10px;margin-top:14px;color:#b9d2c3;font-size:13.5px;line-height:1.4;cursor:pointer}
+.auth-check input{width:17px;height:17px;accent-color:var(--grn);flex:none;cursor:pointer}
+.auth-link{color:var(--grn-bright);font-weight:600;background:none;border:0;padding:0;cursor:pointer;font-size:inherit}
+.auth-link:hover{text-decoration:underline}
+.auth-err{color:#ff9b9b;font-size:13px;margin:12px 2px 0;line-height:1.4}
+.auth-ghost{width:100%;margin-top:12px;background:transparent;border:1px solid var(--bd-dark);color:#cfe0d6;border-radius:12px;min-height:48px;font-weight:600;font-size:14px;cursor:pointer;transition:.15s}
 .auth-ghost:hover{border-color:rgba(80,255,170,.45);color:#fff}
+.auth-topback{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:#9fbdb0;font-weight:600;font-size:13.5px;cursor:pointer;margin-bottom:14px;padding:0}
+.auth-topback:hover{color:var(--grn-bright)}
+.auth-center{text-align:center;display:flex;flex-direction:column;align-items:center}
+.auth-center .auth-sub{max-width:none}
+.auth-bigic{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;color:#04140c;background:linear-gradient(180deg,#53f39d,#22c878);box-shadow:0 0 36px -10px rgba(34,200,120,.8);margin:6px 0 18px}
+.auth-bigic-ok{}
+.auth-center .auth-email,.auth-center .auth-ghost{width:100%}
 /* The personalized Google button renders inside a Google-owned iframe; force a light
    color-scheme on its shell so the dark page CSS doesn't wash it out, and center it. */
 .auth-gshell{display:flex;justify-content:center;align-items:center;min-height:44px;color-scheme:light}

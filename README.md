@@ -68,6 +68,13 @@ gate in CI. Run it as a single container — on Hugging Face Spaces or your own 
 no third‑party data sharing. It complements (doesn’t replace) the AI coders and review tools
 you already have.
 
+<p align="center">
+  <img src="docs/assets/screenshots/04-signin.png" alt="Sign in to Matrix Builder — Google or passwordless email, per-user accounts" width="360" />
+</p>
+
+Secure accounts out of the box: **Sign in with Google** or passwordless email, with per‑user
+data isolation (row‑level security) so every build trail stays private.
+
 ## Trust
 
 - **Open source** under the MIT License — inspect everything.
