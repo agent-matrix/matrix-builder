@@ -7,7 +7,10 @@ import type {
   ValidationReportContract,
 } from "../types/contracts";
 
-export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+// Default to the same-origin proxy path (/api/builder → rewritten to the backend in
+// next.config.ts). This makes Vercel work with ZERO env vars. Override with
+// NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 only for local dev against a raw backend.
+export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/builder";
 
 async function postJson<T>(path: string, payload: unknown): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
