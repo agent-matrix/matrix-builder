@@ -46,7 +46,7 @@ def test_google_login_mints_a_valid_session_jwt(client, rsa_key):
     assert body["user"]["email"] == "user@example.com"
     # The minted token must be accepted by the same verifier the rest of the API uses.
     claims = verify_token(body["access_token"])
-    assert claims["sub"] == "google:1234567890"
+    assert claims["sub"].startswith("account:")  # Google now provisions a real account
     assert claims["email"] == "user@example.com"
 
 

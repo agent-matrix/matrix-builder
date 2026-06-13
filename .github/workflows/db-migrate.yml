@@ -61,6 +61,31 @@ jobs:
           echo "::add-mask::$PSQL_URL"
           { echo "ADMIN_DSN=$DSN"; echo "PSQL_URL=$PSQL_URL"; } >> "$GITHUB_ENV"
 
+      - name: Preflight — is the database reachable?
+        run: |
+          python3 - "$ADMIN_DSN" <<'PY'
+          import re, socket, sys
+          dsn = sys.argv[1]
+          m = re.search(r"@([^:/?]+):(\d+)", dsn)
+          if not m:
+              print("::warning::Could not parse host:port from DSN; skipping preflight."); sys.exit(0)
+          host, port = m.group(1), int(m.group(2))
+          try:
+              socket.getaddrinfo(host, port)
+          except socket.gaierror:
+              print(f"::error::Cannot resolve '{host}'. The Aiven service is almost certainly "
+                    f"POWERED OFF — open the Aiven console and Power on / Resume the service, wait "
+                    f"until it shows Running, then re-run this workflow.")
+              sys.exit(1)
+          try:
+              with socket.create_connection((host, port), timeout=15):
+                  print(f"OK: {host}:{port} is reachable.")
+          except OSError as exc:
+              print(f"::error::Resolved '{host}' but could not connect on {port} ({exc}). "
+                    f"Check the Aiven service is Running and the port is correct.")
+              sys.exit(1)
+          PY
+
       - name: Apply migrations (alembic upgrade head)
         env:
           MIGRATION_DATABASE_URL: ${{ env.ADMIN_DSN }}

@@ -1,0 +1,86 @@
+name: aiven-keepalive
+
+# Daily health check + keepalive. Runs on a GitHub runner (reliable scheduler — unlike the
+# HF Space, which can sleep). Pings Aiven PostgreSQL so it doesn't auto-power-off on the free
+# plan, and pings the live Space so it stays awake and its health is verified every day.
+#
+# Required repository SECRET:
+#   AIVEN_KEEPALIVE_DATABASE_URL   the APP (matrix_app) DSN, e.g.
+#     postgresql+psycopg://matrix_app:PASSWORD@pg-3113274d-matrix-builder.a.aivencloud.com:23188/defaultdb?sslmode=require
+#   (falls back to the DATABASE_URL secret if the dedicated one isn't set)
+# Optional repository VARIABLE:
+#   SPACE_URL                      default https://ruslanmv-matrix-builder.hf.space
+
+on:
+  schedule:
+    - cron: "17 6 * * *"   # base time; a random jitter (below) varies the real ping minute
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aiven-keepalive
+  cancel-in-progress: false
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    env:
+      SPACE_URL: ${{ vars.SPACE_URL || 'https://ruslanmv-matrix-builder.hf.space' }}
+    steps:
+      - name: Randomized jitter (mask the schedule pattern)
+        if: github.event_name == 'schedule'
+        env:
+          JITTER_MAX_SECONDS: ${{ vars.KEEPALIVE_JITTER_MAX_SECONDS || '3600' }}
+        run: |
+          # cron is fixed-minute, which is easy to fingerprint; sleep a random 0..MAX seconds so
+          # the real ping lands at an unpredictable time each day (≈06:17–07:17 by default).
+          MAX="${JITTER_MAX_SECONDS:-3600}"
+          J=$(( (RANDOM * 32768 + RANDOM) % (MAX + 1) ))
+          echo "Sleeping ${J}s (of max ${MAX}s) to randomize the ping time…"
+          sleep "$J"
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Ping Aiven PostgreSQL (keepalive + health)
+        env:
+          DATABASE_URL: ${{ secrets.AIVEN_KEEPALIVE_DATABASE_URL || secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::Set the AIVEN_KEEPALIVE_DATABASE_URL secret (matrix_app DSN)."; exit 1
+          fi
+          PSQL_URL="${DATABASE_URL/+psycopg/}"   # SQLAlchemy → libpq scheme
+          # Pre-resolve so a powered-off service gives a clear message, not a deep trace.
+          HOSTPORT=$(printf '%s' "$PSQL_URL" | sed -nE 's#.*@([^:/?]+):([0-9]+).*#\1 \2#p')
+          if [ -n "$HOSTPORT" ] && ! getent hosts "${HOSTPORT% *}" >/dev/null 2>&1; then
+            echo "::error::Cannot resolve ${HOSTPORT% *} — the Aiven service is likely powered off."; exit 1
+          fi
+          psql "$PSQL_URL" -v ON_ERROR_STOP=1 -Atc "SELECT 'aiven_ok ' || now();"
+
+      - name: Ping the live Space (keepalive + health)
+        run: |
+          set -euo pipefail
+          base="${SPACE_URL%/}"
+          for path in "/" "/api/builder/health" "/api/builder/api/v1/auth/status"; do
+            code=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "${base}${path}" || echo "000")
+            echo "GET ${path} -> ${code}"
+            case "$code" in
+              2*|3*) : ;;
+              *) echo "::error::${base}${path} returned ${code}"; exit 1 ;;
+            esac
+          done
+          echo "space_ok"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Daily health check"
+            echo "- Aiven: pinged \`SELECT now()\`"
+            echo "- Space: ${SPACE_URL}"
+          } >> "$GITHUB_STEP_SUMMARY"

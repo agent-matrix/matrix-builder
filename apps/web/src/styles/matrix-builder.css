@@ -1053,3 +1053,19 @@ button,select,a{-webkit-tap-highlight-color:transparent;touch-action:manipulatio
   .tl-grid { grid-template-columns: 1fr; }
   .tl-version { position: static; }
 }
+
+/* ===========================================================================
+   Auth modal — wizard tabs, steps, errors, Google shell (dark-page fix)
+   =========================================================================== */
+.auth-tabs{display:flex;gap:6px;background:rgba(255,255,255,.04);border:1px solid var(--bd-dark);border-radius:12px;padding:4px;margin-bottom:18px}
+.auth-tabs button{flex:1;border:0;background:transparent;color:#9fbdb0;font-weight:700;font-size:13.5px;padding:9px 10px;border-radius:9px;cursor:pointer;transition:.15s}
+.auth-tabs button.on{background:rgba(34,200,120,.16);color:#fff;box-shadow:0 0 18px -8px rgba(34,200,120,.7)}
+.auth-step{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--grn-bright);margin-bottom:6px}
+.auth-err{color:#ff9b9b;font-size:13px;margin:10px 2px 0;line-height:1.4}
+.auth-ghost{width:100%;margin-top:10px;background:transparent;border:1px solid var(--bd-dark);color:#cfe0d6;border-radius:12px;min-height:46px;font-weight:600;font-size:14px;cursor:pointer;transition:.15s}
+.auth-ghost:hover{border-color:rgba(80,255,170,.45);color:#fff}
+/* The personalized Google button renders inside a Google-owned iframe; force a light
+   color-scheme on its shell so the dark page CSS doesn't wash it out, and center it. */
+.auth-gshell{display:flex;justify-content:center;align-items:center;min-height:44px;color-scheme:light}
+.auth-gshell iframe{color-scheme:light}
+.mb-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;color:#04140c;background:linear-gradient(180deg,#53f39d,#22c878)}
