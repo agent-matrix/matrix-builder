@@ -49,7 +49,35 @@ export default function AuthControls({ onNotice }: { onNotice?: (message: string
   const [user, setLocalUser] = useState<AuthUser | null>(null);
   const [open, setOpen] = useState(false);
   const [clientId, setClientId] = useState(ENV_CLIENT_ID);
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const btnRef = useRef<HTMLDivElement | null>(null);
+  const validEmail = /\S+@\S+\.\S+/.test(email);
+
+  function openModal() {
+    setEmail("");
+    setEmailSent(false);
+    setOpen(true);
+  }
+
+  async function submitEmail() {
+    if (!validEmail || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/v1/auth/email/request`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error(`email ${res.status}`);
+      setEmailSent(true);
+    } catch {
+      onNotice?.("Couldn't send the sign-in link — please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   useEffect(() => {
     setLocalUser(getUser());
@@ -141,11 +169,7 @@ export default function AuthControls({ onNotice }: { onNotice?: (message: string
 
   return (
     <>
-      <button
-        className="l-signin"
-        type="button"
-        onClick={() => (clientId ? setOpen(true) : onNotice?.("Google sign-in is not configured yet."))}
-      >
+      <button className="l-signin" type="button" onClick={openModal}>
         Sign in
       </button>
       {open && (
@@ -163,10 +187,49 @@ export default function AuthControls({ onNotice }: { onNotice?: (message: string
               ×
             </button>
             <div className="auth-mark">◇</div>
-            <div className="auth-h">Sign in to Matrix Builder</div>
-            <p className="auth-sub">Save your Matrix Bundles, reuse them later, and validate AI-generated results.</p>
-            <div ref={btnRef} style={{ display: "flex", justifyContent: "center", minHeight: 44, margin: "8px 0" }} />
-            <div className="auth-legal">No passwords — Google verifies you. By continuing you agree to the Terms &amp; Privacy.</div>
+            <div className="auth-h">Save your Matrix Bundle</div>
+            <p className="auth-sub">
+              Create a free account to keep your bundles private, reuse them later, and validate AI-generated results.
+            </p>
+
+            {emailSent ? (
+              <div style={{ margin: "18px 0 6px" }}>
+                <div className="auth-h" style={{ fontSize: 18 }}>Check your inbox</div>
+                <p className="auth-sub">
+                  We sent a one-time sign-in link to <strong style={{ color: "#f7fff9" }}>{email}</strong>. It expires
+                  in 15 minutes. You can close this window.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Google's button renders here when configured (matches the white "Continue with Google"). */}
+                <div ref={btnRef} style={{ display: "flex", justifyContent: "center", minHeight: clientId ? 44 : 0 }} />
+                <div className="auth-or">or</div>
+                <input
+                  className="auth-field"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void submitEmail();
+                  }}
+                />
+                <button
+                  className="auth-email"
+                  type="button"
+                  disabled={!validEmail || submitting}
+                  onClick={() => void submitEmail()}
+                >
+                  {submitting ? "Sending…" : "Continue with email"} <span aria-hidden="true">→</span>
+                </button>
+                <div className="auth-legal">
+                  We&apos;ll email you a magic link — no passwords. By continuing you agree to the Terms &amp; Privacy.
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
