@@ -13,7 +13,7 @@ import type { BlueprintCandidate } from "@/types/blueprint";
 import type { BundleFile } from "@/types/bundle";
 import type { CoderId } from "@/types/coder";
 
-type Phase = "hero" | "scanning" | "candidates" | "bundle" | "submit" | "validation";
+type Phase = "hero" | "scanning" | "candidates" | "bundle" | "submit" | "validation" | "complete";
 
 type IconDefinition = ReactNode;
 
@@ -143,6 +143,14 @@ const icons = {
     <>
       <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
       <path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
+    </>
+  ),
+  refresh: (
+    <>
+      <path d="M4.5 12a7.5 7.5 0 0112.9-5.2L20 9" />
+      <path d="M20 4v5h-5" />
+      <path d="M19.5 12a7.5 7.5 0 01-12.9 5.2L4 15" />
+      <path d="M4 20v-5h5" />
     </>
   ),
 };
@@ -612,29 +620,40 @@ function CandidateCard({ candidate, choose }: { candidate: BlueprintCandidate; c
   );
 }
 
-// Build-progress stages for the result rail (mirrors the design's batch sequence).
-function buildStages(): { n: string; title: string; short: string; state: "ready" | "planned" }[] {
-  return [
-    { n: "01", title: "Project skeleton", short: "Skeleton", state: "ready" },
-    { n: "02", title: "Core feature", short: "Core feature", state: "planned" },
-    { n: "03", title: "Validation & tests", short: "Validation", state: "planned" },
-    { n: "04", title: "Publish to MatrixHub", short: "Publish", state: "planned" },
-  ];
-}
+// The four controlled batches of a Matrix build (mirrors the design's batch sequence).
+type Stage = { n: string; title: string; short: string; goal: string };
+const STAGES: Stage[] = [
+  { n: "01", title: "Project skeleton", short: "Skeleton", goal: "Initialize the repository, folder structure, configs, and placeholder files." },
+  { n: "02", title: "Core feature", short: "Core feature", goal: "Implement the primary feature end to end, with tests." },
+  { n: "03", title: "Validation & tests", short: "Validation", goal: "Add validation, error handling, and a full test suite." },
+  { n: "04", title: "Publish to MatrixHub", short: "Publish", goal: "Package, sign, and publish the validated bundle to MatrixHub." },
+];
 
-// Batch-01 (skeleton) coder prompt, matching the design's batchCoderPrompt.
-function skeletonPrompt(coderName: string, buildName: string, generic: boolean): string {
+// Per-batch coder prompt, matching the design's batchCoderPrompt.
+function batchPrompt(coderName: string, buildName: string, stage: Stage, generic: boolean): string {
   const intro = generic ? "You are the implementation worker." : `You are ${coderName}, an expert software engineer.`;
-  return `${intro}
+  if (stage.n === "01") {
+    return `${intro}
 Build the initial project skeleton for the ${buildName}.
 Follow the blueprint and standards in this bundle.
 Do not implement features yet—create the structure, configs, and placeholders only.
 Return the full file tree and mark all tasks as complete.
 Return: files changed, commands run, test result, and a short summary.`;
+  }
+  return `${intro}
+Batch ${stage.n} — ${stage.title}.
+${stage.goal}
+
+Rules:
+- Implement only Batch ${stage.n}.
+- Do not change MATRIX_BLUEPRINT.yaml or MATRIX_STANDARDS.lock.
+- Update tests and docs accordingly.
+Return: files changed, commands run, test result, and a short summary.`;
 }
 
 function BundleResult({
   candidate,
+  batchIndex,
   coder,
   setCoder,
   files,
@@ -645,6 +664,7 @@ function BundleResult({
   onTimeline,
 }: {
   candidate: BlueprintCandidate;
+  batchIndex: number;
   coder: CoderId;
   setCoder: (coder: CoderId) => void;
   files: BundleFile[];
@@ -656,8 +676,8 @@ function BundleResult({
 }) {
   const buildName = candidate.name;
   const coderEntry = AI_CODERS.find((item) => item.id === coder) ?? AI_CODERS[1];
-  const prompt = skeletonPrompt(coderEntry.name, buildName, coder === "generic-ai-coder");
-  const stages = buildStages();
+  const cur = STAGES[batchIndex];
+  const prompt = batchPrompt(coderEntry.name, buildName, cur, coder === "generic-ai-coder");
 
   const downloadZip = () => {
     const blob = makeZip(files);
@@ -682,8 +702,6 @@ function BundleResult({
     showToast("Prompt copied to clipboard");
   };
 
-  const cur = stages[0];
-
   return (
     <div className="mb-dark-page">
       <header className="mb-detail-bar"><div className="l-wrap dbar-in">
@@ -699,20 +717,26 @@ function BundleResult({
         <aside className="brx-rail reveal">
           <div className="brx-rail-k">Build progress</div>
           <div className="brx-stages">
-            {stages.map((stage, i) => (
-              <button
-                key={stage.n}
-                type="button"
-                className={`brx-stage ${stage.state}${stage.n === cur.n ? " on" : ""}`}
-                onClick={() => stage.state === "planned" && showToast(`Batch ${stage.n} is planned — not started yet`)}
-              >
-                <span className="brx-srail">
-                  <span className={`brx-node ${stage.state}`}>{stage.state === "ready" ? <span className="brx-dot" /> : null}</span>
-                  {i < stages.length - 1 && <span className="brx-line" />}
-                </span>
-                <span className="brx-sbody"><span className="brx-sn">{stage.n}</span><span className="brx-st">{stage.short}</span></span>
-              </button>
-            ))}
+            {STAGES.map((stage, i) => {
+              const state = i < batchIndex ? "passed" : i === batchIndex ? "ready" : "planned";
+              return (
+                <button
+                  key={stage.n}
+                  type="button"
+                  className={`brx-stage ${state}${i === batchIndex ? " on" : ""}`}
+                  onClick={() => {
+                    if (state === "passed") showToast(`Batch ${stage.n} passed — Matrix Commit #0${stage.n}`);
+                    else if (state === "planned") showToast(`Batch ${stage.n} is planned — not started yet`);
+                  }}
+                >
+                  <span className="brx-srail">
+                    <span className={`brx-node ${state}`}>{state === "passed" ? <MatrixIcon size={13}>{icons.check}</MatrixIcon> : state === "ready" ? <span className="brx-dot" /> : null}</span>
+                    {i < STAGES.length - 1 && <span className="brx-line" />}
+                  </span>
+                  <span className="brx-sbody"><span className="brx-sn">{stage.n}</span><span className="brx-st">{stage.short}</span></span>
+                </button>
+              );
+            })}
           </div>
         </aside>
 
@@ -756,17 +780,19 @@ function BundleResult({
 
 // Submit-AI-result page — paste/diff/zip tabs, then "Check AI output" runs validation.
 function SubmitResult({
+  batchIndex,
   showToast,
   onNew,
   onBack,
   onValidate,
 }: {
+  batchIndex: number;
   showToast: (message: string) => void;
   onNew: () => void;
   onBack: () => void;
   onValidate: () => void;
 }) {
-  const cur = buildStages()[0];
+  const cur = STAGES[batchIndex];
   const [resTab, setResTab] = useState<"summary" | "diff" | "zip">("summary");
   const [result, setResult] = useState("");
   const tabs: Array<[typeof resTab, string, keyof typeof icons]> = [
@@ -815,24 +841,29 @@ function SubmitResult({
 
 // Validation-result page — the contract check passed; offer to continue or view the timeline.
 function ValidationResult({
+  batchIndex,
   coder,
   showToast,
   onNew,
   onBack,
   onTimeline,
   onContinue,
+  onFinish,
 }: {
+  batchIndex: number;
   coder: CoderId;
   showToast: (message: string) => void;
   onNew: () => void;
   onBack: () => void;
   onTimeline: () => void;
   onContinue: () => void;
+  onFinish: () => void;
 }) {
-  const cur = buildStages()[0];
+  const cur = STAGES[batchIndex];
   const coderEntry = AI_CODERS.find((item) => item.id === coder) ?? AI_CODERS[1];
   const commitN = `#0${cur.n}`;
-  const nextN = String(Number(cur.n) + 1).padStart(2, "0");
+  const isLast = batchIndex >= STAGES.length - 1;
+  const nextN = STAGES[batchIndex + 1]?.n ?? "";
 
   return (
     <div className="mb-dark-page">
@@ -861,10 +892,68 @@ function ValidationResult({
         </article>
 
         <div className="val-actions reveal">
-          <button className="bo-btn primary" type="button" onClick={onContinue}><MatrixIcon size={16}>{icons.plus}</MatrixIcon>Generate Batch {nextN}</button>
+          {isLast
+            ? <button className="bo-btn primary" type="button" onClick={onFinish}><MatrixIcon size={17}>{icons.check}</MatrixIcon>Finish build</button>
+            : <button className="bo-btn primary" type="button" onClick={onContinue}><MatrixIcon size={16}>{icons.plus}</MatrixIcon>Generate Batch {nextN}</button>}
           <button className="bo-btn" type="button" onClick={onTimeline}><MatrixIcon size={16}>{icons.clock}</MatrixIcon>View timeline</button>
         </div>
-        <div className="val-tertiary reveal"><button className="val-tlink" type="button" onClick={onTimeline}>Finish build early</button></div>
+        {!isLast && <div className="val-tertiary reveal"><button className="val-tlink" type="button" onClick={onFinish}>Finish build early</button></div>}
+      </div>
+    </div>
+  );
+}
+
+// Build-complete report page — every batch passed; offer to reopen, view the timeline, or finish.
+function BuildComplete({
+  candidate,
+  batchesPassed,
+  showToast,
+  onNew,
+  onReopen,
+  onTimeline,
+  onMyBuilds,
+}: {
+  candidate: BlueprintCandidate;
+  batchesPassed: number;
+  showToast: (message: string) => void;
+  onNew: () => void;
+  onReopen: () => void;
+  onTimeline: () => void;
+  onMyBuilds: () => void;
+}) {
+  return (
+    <div className="mb-dark-page">
+      <header className="mb-detail-bar"><div className="l-wrap dbar-in">
+        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <div className="dbar-r" style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+          <button className="l-newbuild" type="button" onClick={onNew}><MatrixIcon size={15}>{icons.plus}</MatrixIcon>New build</button>
+          <AuthControls onNotice={showToast} />
+        </div>
+      </div></header>
+
+      <div className="l-wrap bcp">
+        <div className="bcp-hero reveal">
+          <span className="bcp-orb"><span className="bcp-ring" /><MatrixIcon size={42}>{icons.check}</MatrixIcon></span>
+          <div className="bcp-k">Build complete</div>
+          <h1 className="bcp-h1">{candidate.name}<br /><span className="bcp-em">is ready.</span></h1>
+          <p className="bcp-sub">Every batch passed validation. Your project was built one safe batch at a time — fully under contract.</p>
+        </div>
+
+        <div className="bcp-stats reveal">
+          <div className="bcp-stat"><div className="bcp-sv">{batchesPassed}</div><div className="bcp-sl">Batches passed</div></div>
+          <div className="bcp-stat"><div className="bcp-sv">v1.0.0</div><div className="bcp-sl">Version</div></div>
+          <div className="bcp-stat"><div className="bcp-sv">100%</div><div className="bcp-sl">Contract met</div></div>
+        </div>
+
+        <div className="bcp-actions reveal">
+          <button className="bo-btn primary lg" type="button" onClick={onReopen}><MatrixIcon size={17}>{icons.refresh}</MatrixIcon>Reopen &amp; keep building</button>
+          <button className="bo-btn lg" type="button" onClick={onTimeline}><MatrixIcon size={16}>{icons.clock}</MatrixIcon>View timeline</button>
+        </div>
+        <div className="val-tertiary reveal">
+          <button className="val-tlink grn" type="button" onClick={onMyBuilds}>Back to My Builds</button>
+          <span className="val-tsep" />
+          <button className="val-tlink" type="button" onClick={() => showToast("Bundle download started")}>Download bundle</button>
+        </div>
       </div>
     </div>
   );
@@ -877,6 +966,7 @@ export default function MatrixBuilderClient() {
   const [candidates, setCandidates] = useState<BlueprintCandidate[]>([]);
   const [chosen, setChosen] = useState<BlueprintCandidate | null>(null);
   const [bundleId, setBundleId] = useState("");
+  const [batchIndex, setBatchIndex] = useState(0);
   const [coder, setCoder] = useState<CoderId>("claude-code");
   const [toast, setToast] = useState<string | null>(null);
   const [animationSafe, setAnimationSafe] = useState(false);
@@ -929,7 +1019,13 @@ export default function MatrixBuilderClient() {
   const choose = (candidate: BlueprintCandidate) => {
     setChosen(candidate);
     setBundleId(generateBundleId());
+    setBatchIndex(0);
     setPhase("bundle");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const goPhase = (next: Phase) => {
+    setPhase(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -977,34 +1073,58 @@ export default function MatrixBuilderClient() {
       {phase === "bundle" && chosen && (
         <BundleResult
           candidate={chosen}
+          batchIndex={batchIndex}
           coder={coder}
           setCoder={setCoder}
           files={files}
           showToast={showToast}
           onNew={reset}
           signedIn={signedIn}
-          onSubmit={() => { setPhase("submit"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          onSubmit={() => goPhase("submit")}
           onTimeline={() => router.push("/matrix-builder/builds")}
         />
       )}
 
       {phase === "submit" && chosen && (
         <SubmitResult
+          batchIndex={batchIndex}
           showToast={showToast}
           onNew={reset}
-          onBack={() => { setPhase("bundle"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-          onValidate={() => { setPhase("validation"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          onBack={() => goPhase("bundle")}
+          onValidate={() => goPhase("validation")}
         />
       )}
 
       {phase === "validation" && chosen && (
         <ValidationResult
+          batchIndex={batchIndex}
           coder={coder}
           showToast={showToast}
           onNew={reset}
-          onBack={() => { setPhase("submit"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          onBack={() => goPhase("submit")}
           onTimeline={() => router.push("/matrix-builder/builds")}
-          onContinue={() => { showToast("Batch 01 passed — saved to your builds."); router.push("/matrix-builder/builds"); }}
+          onContinue={() => {
+            const next = Math.min(batchIndex + 1, STAGES.length - 1);
+            setBatchIndex(next);
+            showToast(`Batch ${STAGES[batchIndex].n} passed — Matrix Commit #0${STAGES[batchIndex].n}`);
+            goPhase("bundle");
+          }}
+          onFinish={() => goPhase("complete")}
+        />
+      )}
+
+      {phase === "complete" && chosen && (
+        <BuildComplete
+          candidate={chosen}
+          batchesPassed={batchIndex + 1}
+          showToast={showToast}
+          onNew={reset}
+          onReopen={() => {
+            setBatchIndex((i) => Math.min(i + 1, STAGES.length - 1));
+            goPhase("bundle");
+          }}
+          onTimeline={() => router.push("/matrix-builder/builds")}
+          onMyBuilds={() => router.push("/matrix-builder/builds")}
         />
       )}
 
