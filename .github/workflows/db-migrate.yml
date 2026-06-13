@@ -99,9 +99,10 @@ jobs:
           set -euo pipefail
           psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f services/api/scripts/aiven_setup.sql
           if [ -n "${MATRIX_APP_PASSWORD:-}" ]; then
-            # :'pw' safely quotes the value (no SQL injection via the password).
-            psql "$PSQL_URL" -v ON_ERROR_STOP=1 -v pw="$MATRIX_APP_PASSWORD" \
-              -c "ALTER ROLE matrix_app PASSWORD :'pw'"
+            # psql -c does NOT interpolate :'var'; feed via stdin (-f -) so :'pw' is expanded
+            # and safely single-quoted (no SQL injection via the password value).
+            printf "ALTER ROLE matrix_app PASSWORD :'pw';\n" \
+              | psql "$PSQL_URL" -v ON_ERROR_STOP=1 -v pw="$MATRIX_APP_PASSWORD" -f -
             echo "matrix_app password set."
           else
             echo "::warning::MATRIX_APP_PASSWORD not set — role created/granted but password unchanged."
