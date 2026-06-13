@@ -61,25 +61,36 @@ builder.matrixhub.io   CNAME   <builder-vercel-project>.vercel-dns-017.com   (DN
 
 Vercel shows the exact target when you add the domain to the project; use that value.
 
+## One frontend source, two homes
+
+`apps/web` is the **only** frontend codebase. The same source runs on Vercel (production
+UI) and inside the HF Space (full-stack demo) — never copied or forked by hand:
+
+| Home | Builds from | Backend it talks to |
+|---|---|---|
+| **Vercel** `builder.matrixhub.io` | `apps/web` (root dir) | rewrites `/api/builder/*` → the HF Space's public `/api/builder` |
+| **HF Space** `ruslanmv-matrix-builder.hf.space` | `apps/web` staged as `web/` by CI, built in-image | local FastAPI on `127.0.0.1:8000` |
+
+`next.config.ts` resolves `rewrites()` at **build time** into the routes manifest, so the
+only difference between the two is the `MATRIX_BUILDER_SPACE_URL` present at build:
+the Vercel default (`…hf.space/api/builder`) vs the HF Dockerfile's `http://127.0.0.1:8000`.
+CI (`.github/workflows/hf-space.yml`) rebuilds the Space from `apps/web` on every push.
+
 ## Vercel project settings
 
 - **Root directory:** `apps/web`
 - **Framework preset:** Next.js (rewrites come from `next.config.ts` — no `vercel.json` needed)
-- **Environment variables** (see `apps/web/.env.example`):
-  - `NEXT_PUBLIC_API_BASE_URL=/api/builder`
-  - `MATRIX_BUILDER_SPACE_URL=https://ruslanmv-matrix-builder.hf.space`
-  - `AGENT_GENERATOR_SPACE_URL=https://ruslanmv-agent-generator.hf.space`
-  - `OLLABRIDGE_SPACE_URL=https://ruslanmv-ollabridge.hf.space`
+- **Environment variables:** none required — the defaults in `next.config.ts` /
+  `apps/web/.env.example` already point at the HF Space's public API. Override only for
+  staging (`MATRIX_BUILDER_SPACE_URL`, `AGENT_GENERATOR_SPACE_URL`, `OLLABRIDGE_SPACE_URL`).
 
-The defaults are baked into `next.config.ts`, so the `*_SPACE_URL` vars are only needed to
-override (e.g. staging). `NEXT_PUBLIC_API_BASE_URL` **must** be set so the browser uses the
-same-origin proxy instead of `localhost:8000`.
+## HF Space (full stack)
 
-## Backend (HF Space)
-
-Follow [deploy-huggingface.md](deploy-huggingface.md): one Docker container, port 7860.
-For the free launch the backend can run on **SQLite (demo)** or the **Aiven `matrix_app`
-DSN**. Set Space secrets `DATABASE_URL` and `MB_JWT_SECRET` (≥32 bytes) when using Aiven.
+The Space runs the Next.js UI (port 7860) with FastAPI behind it — see [`hf/`](../hf/) and
+[deploy-huggingface.md](deploy-huggingface.md). Live now at
+`https://ruslanmv-matrix-builder.hf.space`. Demo mode uses in-memory storage; set Space
+secrets `MB_JWT_SECRET` (≥32 bytes) and optional `DATABASE_URL` (Aiven `matrix_app`) for
+persistence. To enable CI auto-deploy, add the repo secret `HF_TOKEN` (write scope on the Space).
 
 ## Phases
 

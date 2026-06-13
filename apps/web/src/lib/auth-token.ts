@@ -4,6 +4,32 @@
 // (Track L2) mints/stores it with the shared MB_JWT_SECRET; the API verifies the same secret.
 
 const STORAGE_KEY = "mb_token";
+const USER_KEY = "mb_user";
+
+export type AuthUser = { email?: string | null; name?: string | null; picture?: string | null };
+
+export function getUser(): AuthUser | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    return null;
+  }
+}
+
+export function setSession(token: string, user: AuthUser): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, token);
+  window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function clearSession(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(STORAGE_KEY);
+  window.localStorage.removeItem(USER_KEY);
+}
 
 export function getAuthToken(): string | null {
   if (typeof window !== "undefined") {

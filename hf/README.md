@@ -7,40 +7,51 @@ sdk: docker
 app_port: 7860
 pinned: false
 license: mit
+short_description: Give AI coders a contract, not a prompt.
+tags:
+  - ai-coding
+  - governance
+  - nextjs
+  - fastapi
 ---
 
-# Matrix Builder — Hugging Face Space
+# Matrix Builder — full stack on one Space
 
-Deploy the **Matrix Builder** control-plane API as one simple Docker container on
-Hugging Face Spaces. This folder is a **self-contained Space**: the `Dockerfile` fetches
-the application from the matrix-builder repository at build time, so you do **not** need to
-push the whole monorepo to your Space.
+The complete app on a single Hugging Face Space: the **Next.js UI** is the public server
+(port 7860) and proxies `/api/builder/*` to the **FastAPI** backend running internally on
+`127.0.0.1:8000` — same-origin, no CORS. This mirrors the Vercel topology exactly, from the
+**same `apps/web` source** (no second frontend codebase).
 
-> Give AI coders a contract, not a prompt. This Space serves the Matrix Builder API
-> (`/health`, `/api/v1/...`) on port **7860**. The public frontend lives at
-> `builder.matrixhub.io` (Vercel) and proxies here via `/api/builder/*` — see
-> [`docs/go-live.md`](https://github.com/agent-matrix/matrix-builder/blob/main/docs/go-live.md).
+- **UI:** `/` · **API docs:** `/api/builder/docs` · **Health:** `/api/builder/health`
+- **Ecosystem:** [agent-generator](https://huggingface.co/spaces/ruslanmv/agent-generator) ·
+  [GitPilot](https://huggingface.co/spaces/ruslanmv/gitpilot) ·
+  [standard](https://www.matrixhub.io/definitions)
 
-## Deploy in 3 steps
+## How it's deployed (single source)
 
-1. **Create the Space** → New Space → **SDK: Docker** → blank.
-2. **Add these two files** (`README.md` + `Dockerfile`) to the Space repo root, then push.
-   HF builds the `Dockerfile` and serves it on port 7860.
-3. **Set secrets** (Settings → *Variables and secrets*):
-   - `DATABASE_URL` — the least-privilege `matrix_app` Aiven DSN (`…?sslmode=require`),
-     **or** leave unset to run on an ephemeral SQLite demo DB.
-   - `MB_JWT_SECRET` — a ≥32-byte random secret.
-   - Optional: `APP_ENV=production`, `STORAGE_BACKEND=local`.
+`apps/web` is the only frontend source. It runs in two places, both built from it:
 
-To pin a branch or fork, set build args in the Space (or edit the `Dockerfile` defaults):
-`MATRIX_BUILDER_REPO` and `MATRIX_BUILDER_REF`.
+| Where | Builds from | Backend |
+|---|---|---|
+| **Vercel** (`builder.matrixhub.io`) | `apps/web` (root dir) | rewrites `/api/builder/*` → this Space's public `/api/builder` |
+| **HF Space** (this) | `apps/web` staged as `web/` by CI, built in-image | local FastAPI on `127.0.0.1:8000` |
 
-## Notes
+CI keeps the Space in sync: `.github/workflows/hf-space.yml` stages `apps/web` → `web/`
+plus `services/api`, then pushes to the Space, which builds this `Dockerfile`. Developers
+only ever edit `apps/web`.
 
-- **Migrations are not run by this container.** An operator applies Alembic migrations
-  against Aiven with `make migrate` (privileged `avnadmin` DSN). The web container connects
-  only as `matrix_app`.
-- **Alternative:** if you'd rather build from the monorepo directly, the repo **root**
-  `Dockerfile` is also HF-ready — push the whole repo and HF will use it. This `hf/` folder
-  exists so the Space can stay thin and standalone.
-- Full deployment guide: [`docs/deploy-huggingface.md`](https://github.com/agent-matrix/matrix-builder/blob/main/docs/deploy-huggingface.md).
+## Deploy tree (assembled by CI at the Space root)
+
+```text
+Dockerfile  start.sh  README.md  requirements.txt
+web/          ← apps/web (the single frontend source)
+services/api/ ← FastAPI backend
+scripts/
+```
+
+## Secrets / variables (Settings → Variables and secrets)
+
+- `MB_JWT_SECRET` — ≥32-byte random (required for real auth; demo runs in-memory without a DB).
+- Optional: `DATABASE_URL` (Aiven `matrix_app` DSN) for persistence; `APP_ENV=production`.
+
+Source: https://github.com/agent-matrix/matrix-builder

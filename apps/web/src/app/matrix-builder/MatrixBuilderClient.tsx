@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import AuthControls from "./AuthControls";
 import { AI_CODERS, IDEA_EXAMPLES, SCANNING_MESSAGES } from "@/lib/constants";
-import { createCoderPrompt } from "@/lib/coder-prompts";
 import { createBundleFiles } from "@/lib/matrix-bundle";
 import { createBlueprintCandidates } from "@/lib/matrix-demo-data";
 import { generateBundleId } from "@/lib/ids";
 import { makeZip } from "@/lib/zip";
 import type { BlueprintCandidate } from "@/types/blueprint";
 import type { BundleFile } from "@/types/bundle";
-import type { AiCoder, CoderId } from "@/types/coder";
+import type { CoderId } from "@/types/coder";
 
 type Phase = "hero" | "scanning" | "candidates" | "bundle";
 
@@ -117,6 +117,23 @@ const icons = {
     </>
   ),
   back: <path d="M14 6l-6 6 6 6" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 1.8" />
+    </>
+  ),
+};
+
+// Map each AI coder to one of the icons above (mirrors the design's CODER_ICON).
+const CODER_ICON: Record<string, keyof typeof icons> = {
+  "claude-code": "cube",
+  "codex-chatgpt": "code",
+  cursor: "arrow",
+  gitpilot: "git",
+  "ibm-bob": "layers",
+  "generic-ai-coder": "plug",
 };
 
 function NetworkCanvas() {
@@ -424,12 +441,15 @@ function CopyButton({ text, label = "Copy", onDone }: { text: string; label?: st
   );
 }
 
-function BuilderBar({ onNew }: { onNew: () => void }) {
+function BuilderBar({ onNew, onNotice }: { onNew: () => void; onNotice?: (message: string) => void }) {
   return (
     <header className="mb-bar">
       <div className="l-wrap mb-bar-in">
         <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
-        <button className="mb-back" type="button" onClick={onNew}><MatrixIcon size={16}>{icons.back}</MatrixIcon>New build</button>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+          <button className="mb-back" type="button" onClick={onNew}><MatrixIcon size={16}>{icons.back}</MatrixIcon>New build</button>
+          <AuthControls onNotice={onNotice} />
+        </span>
       </div>
     </header>
   );
@@ -563,25 +583,47 @@ function CandidateCard({ candidate, choose }: { candidate: BlueprintCandidate; c
   );
 }
 
+// Build-progress stages for the result rail (mirrors the design's batch sequence).
+function buildStages(): { n: string; title: string; short: string; state: "ready" | "planned" }[] {
+  return [
+    { n: "01", title: "Project skeleton", short: "Skeleton", state: "ready" },
+    { n: "02", title: "Core feature", short: "Core feature", state: "planned" },
+    { n: "03", title: "Validation & tests", short: "Validation", state: "planned" },
+    { n: "04", title: "Publish to MatrixHub", short: "Publish", state: "planned" },
+  ];
+}
+
+// Batch-01 (skeleton) coder prompt, matching the design's batchCoderPrompt.
+function skeletonPrompt(coderName: string, buildName: string, generic: boolean): string {
+  const intro = generic ? "You are the implementation worker." : `You are ${coderName}, an expert software engineer.`;
+  return `${intro}
+Build the initial project skeleton for the ${buildName}.
+Follow the blueprint and standards in this bundle.
+Do not implement features yet—create the structure, configs, and placeholders only.
+Return the full file tree and mark all tasks as complete.
+Return: files changed, commands run, test result, and a short summary.`;
+}
+
 function BundleResult({
-  idea,
   candidate,
-  bundleId,
   coder,
   setCoder,
   files,
-  prompt,
   showToast,
+  onNew,
 }: {
-  idea: string;
   candidate: BlueprintCandidate;
-  bundleId: string;
   coder: CoderId;
   setCoder: (coder: CoderId) => void;
   files: BundleFile[];
-  prompt: string;
   showToast: (message: string) => void;
+  onNew: () => void;
 }) {
+  const buildName = candidate.name;
+  const coderEntry = AI_CODERS.find((item) => item.id === coder) ?? AI_CODERS[1];
+  const prompt = skeletonPrompt(coderEntry.name, buildName, coder === "generic-ai-coder");
+  const stages = buildStages();
+
   const downloadZip = () => {
     const blob = makeZip(files);
     const anchor = document.createElement("a");
@@ -605,75 +647,75 @@ function BundleResult({
     showToast("Prompt copied to clipboard");
   };
 
-  const sendTo = async (target: AiCoder) => {
-    try {
-      await navigator.clipboard?.writeText(createCoderPrompt(target.id, idea, candidate, bundleId));
-    } catch {
-      // Clipboard may not be available in every browser context.
-    }
-    if (target.url) window.open(target.url, "_blank", "noopener");
-    showToast(`Prompt copied — paste it into ${target.name}`);
-  };
+  const cur = stages[0];
 
   return (
-    <article className="darkpanel bundle reveal">
-      <div className="bundle-top">
-        <div>
-          <span className="mb-eyebrow" style={{ color: "var(--grn-bright)" }}><span className="d" style={{ background: "var(--grn-bright)" }} />Your Matrix Bundle is ready</span>
-          <h2 className="bundle-h">{candidate.name}</h2>
-          <div className="bundle-id">Bundle <b>{bundleId}</b> · expires in 48h (guest)</div>
-          <div className="bundle-badges">
-            {candidate.standards.map((standard) => <span className="dbadge" key={standard}><MatrixIcon size={13}>{icons.shield}</MatrixIcon>{standard}</span>)}
-          </div>
+    <div className="mb-dark-page">
+      <header className="mb-detail-bar"><div className="l-wrap dbar-in">
+        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <div className="dbar-r" style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+          <button className="l-newbuild" type="button" onClick={onNew}><MatrixIcon size={15}>{icons.plus}</MatrixIcon>New build</button>
+          <AuthControls onNotice={showToast} />
         </div>
-      </div>
+      </div></header>
 
-      <div className="bundle-grid">
-        <div>
-          <div className="bx-label">Copy a controlled prompt for your AI coder</div>
-          <div className="coder-seg">
-            {AI_CODERS.map((item) => <button type="button" key={item.id} className={coder === item.id ? "on" : ""} onClick={() => setCoder(item.id)}>{item.short}</button>)}
-          </div>
-          <div className="codeblock">
-            <div className="codeblock-bar"><span className="fn">coder-prompts/{coder}.md</span><CopyButton text={prompt} onDone={() => showToast("Prompt copied to clipboard")} /></div>
-            <pre>{prompt}</pre>
-          </div>
-          <div className="allowed-box">
-            <div className="allowed-title">Allowed files policy</div>
-            <div className="allowed-grid">
-              <span>backend/app/api/routes.py</span>
-              <span>backend/tests/test_routes.py</span>
-              <span>frontend/app/page.tsx</span>
-              <span>frontend/components/hero.tsx</span>
-            </div>
-            <p>Every prompt says the AI coder is a worker, not an architect. It may implement only TASK-001 and must not modify MATRIX_* control files.</p>
-          </div>
-          <div className="bx-label" style={{ marginTop: 22 }}>Or send/fetch it with this bundle URL pattern</div>
-          <div className="fetch-url">https://api.ruslanmv.com/v1/matrix-bundles/{bundleId}?open_file=coder-prompts/{coder}.md</div>
-          <div className="bx-label" style={{ marginTop: 22 }}>Or send it straight to</div>
-          <div className="send-grid">
-            {AI_CODERS.filter((item) => item.id !== "generic-ai-coder").map((item) => (
-              <button className="send-chip" type="button" key={item.id} onClick={() => void sendTo(item)}><MatrixIcon size={15}>{icons.send}</MatrixIcon>{item.name}</button>
+      <div className="brx">
+        {/* LEFT: build progress rail */}
+        <aside className="brx-rail reveal">
+          <div className="brx-rail-k">Build progress</div>
+          <div className="brx-stages">
+            {stages.map((stage, i) => (
+              <button
+                key={stage.n}
+                type="button"
+                className={`brx-stage ${stage.state}${stage.n === cur.n ? " on" : ""}`}
+                onClick={() => stage.state === "planned" && showToast(`Batch ${stage.n} is planned — not started yet`)}
+              >
+                <span className="brx-srail">
+                  <span className={`brx-node ${stage.state}`}>{stage.state === "ready" ? <span className="brx-dot" /> : null}</span>
+                  {i < stages.length - 1 && <span className="brx-line" />}
+                </span>
+                <span className="brx-sbody"><span className="brx-sn">{stage.n}</span><span className="brx-st">{stage.short}</span></span>
+              </button>
             ))}
           </div>
+        </aside>
+
+        {/* CENTER: current batch prompt */}
+        <div className="brx-center">
+          <button className="upd-back reveal" type="button" onClick={onNew}><MatrixIcon size={15}>{icons.back}</MatrixIcon>My Builds</button>
+          <h1 className="br-h1 reveal">{buildName}</h1>
+          <div className="br-meta reveal">v1.0.0 <span className="dm-sep">·</span> <span className="dm-batch">Batch {cur.n}</span> <span className="dm-sep">·</span> <span className="br-ready"><span className="dm-dot" />Ready</span></div>
+
+          <div className="br-label reveal">Choose AI coder</div>
+          <div className="br-coders reveal">
+            {AI_CODERS.map((item) => (
+              <button key={item.id} type="button" className={`br-coder${coder === item.id ? " on" : ""}`} onClick={() => setCoder(item.id)}>
+                <span className="br-cic"><MatrixIcon size={18}>{icons[CODER_ICON[item.id] ?? "plug"]}</MatrixIcon></span>{item.short}
+              </button>
+            ))}
+          </div>
+
+          <article className="darkpanel br-prompt reveal">
+            <div className="br-prompt-bar"><span className="br-pt">Prompt preview — <span className="cc-grn">{coderEntry.short}</span></span><CopyButton text={prompt} onDone={() => showToast("Prompt copied to clipboard")} /></div>
+            <pre>{prompt}{"\n\n..."}</pre>
+          </article>
+          <button className="bo-btn primary br-copy reveal" type="button" onClick={() => void copyPrompt()}><MatrixIcon size={17}>{icons.copy}</MatrixIcon>Copy Batch {cur.n} prompt</button>
         </div>
 
-        <div>
-          <div className="bx-label">Bundle contents · {files.length} files</div>
-          <FileTree files={files} />
-        </div>
+        {/* RIGHT: next step */}
+        <aside className="brx-right">
+          <article className="darkpanel br-next reveal">
+            <div className="br-next-top"><span className="br-next-ic"><MatrixIcon size={22}>{icons.plug}</MatrixIcon></span><span className="br-next-k">Next step</span></div>
+            <div className="br-next-t">Run this prompt in your AI coder.</div>
+            <div className="br-next-d">Open your preferred AI coder, paste the prompt, and let it implement Batch {cur.n}.</div>
+            <button className="bo-btn primary full" type="button" onClick={() => showToast("Sign in to validate AI output")}><MatrixIcon size={16}>{icons.check}</MatrixIcon>I ran this batch</button>
+            <button className="bo-btn full" type="button" onClick={() => showToast("Sign in to keep the build timeline")}><MatrixIcon size={16}>{icons.clock}</MatrixIcon>View timeline</button>
+            <button className="bo-btn full" type="button" onClick={downloadZip}><MatrixIcon size={16}>{icons.download}</MatrixIcon>Download ZIP ({files.length} files)</button>
+          </article>
+        </aside>
       </div>
-
-      <div className="build-opts">
-        <button className="bo-btn primary" type="button" onClick={downloadZip}><MatrixIcon size={17}>{icons.download}</MatrixIcon>Download ZIP</button>
-        <button className="bo-btn" type="button" onClick={() => void copyPrompt()}><MatrixIcon size={16}>{icons.copy}</MatrixIcon>Copy prompt</button>
-        <button className="bo-btn" type="button" onClick={() => showToast("Sign in to validate AI output")}><MatrixIcon size={16}>{icons.check}</MatrixIcon>Validate result</button>
-      </div>
-      <div className="bundle-foot">
-        <button className="bundle-sec" type="button" onClick={() => showToast("Free account needed to save bundles")}>Save this bundle</button>
-        <button className="bundle-sec" type="button" onClick={() => showToast("Free account needed to publish")}>Publish to MatrixHub</button>
-      </div>
-    </article>
+    </div>
   );
 }
 
@@ -734,7 +776,6 @@ export default function MatrixBuilderClient() {
   };
 
   const files = chosen ? createBundleFiles(effectiveIdea, chosen, bundleId) : [];
-  const prompt = chosen ? createCoderPrompt(coder, effectiveIdea, chosen, bundleId) : "";
 
   return (
     <div className={`app${animationSafe ? " anim-safe" : ""}`}>
@@ -742,7 +783,7 @@ export default function MatrixBuilderClient() {
 
       {phase === "scanning" && (
         <>
-          <BuilderBar onNew={reset} />
+          <BuilderBar onNew={reset} onNotice={showToast} />
           <div className="l-wrap mb-page">
             <div className="mb-scan">
               <ProgressRing value={Math.min(100, Math.round((scanIndex / SCANNING_MESSAGES.length) * 100))} />
@@ -755,7 +796,7 @@ export default function MatrixBuilderClient() {
 
       {phase === "candidates" && (
         <>
-          <BuilderBar onNew={reset} />
+          <BuilderBar onNew={reset} onNotice={showToast} />
           <div className="l-wrap mb-page">
             <div className="mb-head reveal">
               <span className="mb-eyebrow"><span className="d" />Step 1 · Choose a blueprint</span>
@@ -770,18 +811,7 @@ export default function MatrixBuilderClient() {
       )}
 
       {phase === "bundle" && chosen && (
-        <>
-          <BuilderBar onNew={reset} />
-          <div className="l-wrap mb-page">
-            <BundleResult idea={effectiveIdea} candidate={chosen} bundleId={bundleId} coder={coder} setCoder={setCoder} files={files} prompt={prompt} showToast={showToast} />
-          </div>
-          <footer className="l-foot">
-            <div className="l-wrap l-foot-in">
-              <span>© 2026 Matrix Builder · ruslanmv.com</span>
-              <span className="links"><a href="#how">API</a><a href="#how">Docs</a><a href="https://www.matrixhub.io" target="_blank" rel="noreferrer">MatrixHub</a></span>
-            </div>
-          </footer>
-        </>
+        <BundleResult candidate={chosen} coder={coder} setCoder={setCoder} files={files} showToast={showToast} onNew={reset} />
       )}
 
       {toast && <div className="mb-toast"><MatrixIcon size={17}>{icons.check}</MatrixIcon>{toast}</div>}
