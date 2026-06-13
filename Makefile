@@ -1,20 +1,34 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help doctor dev dev-local api-dev down test lint format clean bootstrap openapi security sbom checksums release-checks
+.PHONY: help doctor dev dev-local api-dev down test lint format clean bootstrap openapi security sbom checksums release-checks install migrate
 
 help:
 	@echo "Matrix Builder development commands"
 	@echo ""
+	@echo "  make install    Install Python + frontend dependencies"
 	@echo "  make doctor     Check local tools and repository structure"
 	@echo "  make bootstrap  Create local folders and copy .env.example to .env if needed"
 	@echo "  make dev        Start Docker Compose development stack"
 	@echo "  make api-dev    Run the FastAPI backend locally"
+	@echo "  make migrate    Apply database migrations (Aiven: set MIGRATION_DATABASE_URL)"
 	@echo "  make test       Run tests"
 	@echo "  make lint       Run static checks"
 	@echo "  make format     Normalize whitespace"
 	@echo "  make down       Stop Docker Compose development stack"
 	@echo "  make clean      Remove local caches"
+
+install: bootstrap
+	@echo "Installing Python dependencies (uv if present, else pip)…"
+	@if command -v uv >/dev/null 2>&1; then \
+	  uv pip install --system -r requirements.txt; \
+	else \
+	  echo "uv not found — falling back to pip (see https://docs.astral.sh/uv/ to install uv)"; \
+	  pip install -r requirements.txt; \
+	fi
+	@echo "Installing frontend dependencies (pnpm workspace)…"
+	@pnpm install
+	@echo "Install complete. Run 'make test' to verify."
 
 bootstrap:
 	@mkdir -p .local/bundles .local/postgres .local/minio .local/redis
@@ -33,6 +47,9 @@ api-dev: bootstrap
 
 down:
 	@docker compose -f docker-compose.dev.yml down --remove-orphans
+
+migrate:
+	@bash scripts/migrate.sh
 
 test:
 	@bash scripts/test.sh

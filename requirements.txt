@@ -1,0 +1,25 @@
+# Matrix Builder — runtime + persistence + dev/test dependencies (ADR 0002: Aiven Postgres).
+# Installed by `make install` (uv if present, else pip). The API/workers run via PYTHONPATH, so
+# this is the single source of truth for Python deps rather than an installable package.
+
+# --- API runtime ---
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pydantic>=2.8
+
+# --- persistence (Aiven Postgres + RLS + self-issued JWT) ---
+sqlalchemy>=2.0
+alembic>=1.13
+psycopg[binary]>=3.1
+pyjwt>=2.8
+
+# --- observability ---
+opentelemetry-api>=1.28
+prometheus-client>=0.20
+
+# --- dev / test / lint ---
+pytest>=8.0
+httpx>=0.27
+jsonschema>=4.22
+ruff>=0.6
+mypy>=1.11

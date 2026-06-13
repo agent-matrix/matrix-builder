@@ -9,8 +9,9 @@ from app.schemas.bundle import MatrixBundle
 from app.schemas.common import ApiRoute, BundleFile, CoderId, QualityLevel, ValidationStatus
 from app.schemas.idea import IdeaIntent, IdeaRequest
 from app.schemas.prompt import PromptResponse
-from app.services.ai_coder_prompt_service import build_prompt_response, normalize_coder as normalize_prompt_coder
 from app.schemas.validation import ValidationCheck, ValidationReport
+from app.services.ai_coder_prompt_service import build_prompt_response
+from app.services.ai_coder_prompt_service import normalize_coder as normalize_prompt_coder
 from app.utils.hashing import sha256_text
 from app.utils.ids import stable_id
 from app.utils.time import utc_now
@@ -26,6 +27,66 @@ class AgentGeneratorStatus:
     status: str
     engine: str
     boundary: str = "matrix-builder-orchestrates-agent-generator-generates"
+
+
+# --- Continuous Build value objects (Batch C2) ---------------------------------------------
+# Plain frozen dataclasses so both engine (SDK) and deterministic (mock) modes return the same
+# shape; the WorkflowService maps these onto ORM rows.
+
+@dataclass(frozen=True)
+class BatchPlanResult:
+    batch_id: str
+    ordinal: int
+    title: str
+    goal_md: str
+    change_type: str  # small-update|add-feature|fix-issue
+    tasks: list[dict[str, Any]]
+    allowed_files: list[str]
+    forbidden_changes: list[str]
+    acceptance_commands: list[str]
+    change_summary: list[str]
+    is_repair: bool
+
+
+@dataclass(frozen=True)
+class BatchPromptPack:
+    coder: str
+    prompt_text: str
+    constraints: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ChangeValidationResult:
+    status: str  # engine status verbatim: approved|needs-repair|rejected
+    score: int
+    findings: list[dict[str, Any]]
+    tree_hash: str
+    summary: str
+    added: list[str]
+    changed: list[str]
+    deleted: list[str]
+
+
+@dataclass(frozen=True)
+class CommitDiffResult:
+    base_commit_id: str | None
+    head_commit_id: str
+    patch: str
+
+
+# Matrix control files must never be edited by a coder; changing them is a hard violation.
+_CONTROL_FILES = frozenset(
+    {
+        "MATRIX_BLUEPRINT.yaml",
+        "MATRIX_STANDARDS.lock",
+        "MATRIX_TASKS.md",
+        "MATRIX_ALLOWED_CHANGES.md",
+        "MATRIX_ACCEPTANCE_CRITERIA.md",
+        "MATRIX_VALIDATION.md",
+    }
+)
+_DEFAULT_ALLOWED_ROOTS = ("frontend/", "backend/", "worker/", "tests/", "docs/")
+_DEFAULT_FORBIDDEN = ("MATRIX_BLUEPRINT.yaml", "MATRIX_STANDARDS.lock", ".github/workflows/")
 
 
 class AgentGeneratorAdapter:
@@ -269,6 +330,280 @@ class AgentGeneratorAdapter:
             created_at=utc_now(),
         )
 
+    # --- Continuous Build: incremental batches (Batch C2) ----------------------------------
+
+    def plan_batch(
+        self,
+        *,
+        version_label: str,
+        goal_md: str,
+        change_type: str = "add-feature",
+        ordinal: int = 1,
+        parent_commit_id: str | None = None,
+        blueprint: Any | None = None,
+    ) -> BatchPlanResult:
+        """Plan the next batch *inside the current version* ("Continue build").
+
+        SDK mode delegates to the v1.1.0 engine's ``plan_batch``; mock mode fabricates a
+        deterministic, contract-shaped plan so the API and tests run without the engine.
+        """
+        if self._engine and hasattr(self._engine, "plan_batch") and blueprint is not None:
+            plan = self._engine.plan_batch(
+                blueprint, goal_md, change_type, ordinal=ordinal, parent_commit=parent_commit_id
+            )
+            return _batch_plan_from_engine(plan)
+
+        batch_id = stable_id("bat", f"{version_label}:{ordinal}:{change_type}:{goal_md}")
+        title = _title_from_goal(goal_md)
+        task = {
+            "task_id": f"TASK-{ordinal:03d}",
+            "title": title,
+            "allowed_files": ["backend/app/", "frontend/app/", "tests/"],
+            "acceptance_criteria": [
+                "Implements the stated goal",
+                "Tests pass",
+                "No Matrix control files changed",
+            ],
+        }
+        return BatchPlanResult(
+            batch_id=batch_id,
+            ordinal=ordinal,
+            title=title,
+            goal_md=goal_md,
+            change_type=change_type,
+            tasks=[task],
+            allowed_files=list(_DEFAULT_ALLOWED_ROOTS),
+            forbidden_changes=list(_DEFAULT_FORBIDDEN),
+            acceptance_commands=["pytest -q", "ruff check ."],
+            change_summary=[goal_md.strip()[:120] or title],
+            is_repair=False,
+        )
+
+    def plan_repair_batch(
+        self,
+        *,
+        version_label: str,
+        validation: ChangeValidationResult,
+        ordinal: int = 1,
+        parent_commit_id: str | None = None,
+        blueprint: Any | None = None,
+    ) -> BatchPlanResult:
+        """Turn a failing validation result into a ``fix-issue`` batch scoped to the bad files."""
+        if self._engine and hasattr(self._engine, "plan_repair_batch") and validation.findings:
+            try:
+                report = self._engine_report_from_validation(validation)
+                plan = self._engine.plan_repair_batch(
+                    report, blueprint=blueprint, ordinal=ordinal, parent_commit=parent_commit_id
+                )
+                return _batch_plan_from_engine(plan)
+            except Exception:  # pragma: no cover - degraded to deterministic repair
+                pass
+
+        bad_files = sorted({f["file_path"] for f in validation.findings if f.get("file_path")})
+        goal_md = "Repair the validation findings from the previous submission:\n" + "\n".join(
+            f"- {f['check_name']}: {f['message']}" for f in validation.findings
+        )
+        batch_id = stable_id("bat", f"repair:{version_label}:{ordinal}:{validation.tree_hash}")
+        task = {
+            "task_id": f"TASK-{ordinal:03d}-FIX",
+            "title": "Fix validation findings",
+            "allowed_files": bad_files or ["backend/app/", "frontend/app/"],
+            "acceptance_criteria": [
+                "All previously failing checks pass",
+                "No Matrix control files changed",
+            ],
+        }
+        return BatchPlanResult(
+            batch_id=batch_id,
+            ordinal=ordinal,
+            title="Repair batch",
+            goal_md=goal_md,
+            change_type="fix-issue",
+            tasks=[task],
+            allowed_files=bad_files or list(_DEFAULT_ALLOWED_ROOTS),
+            forbidden_changes=list(_DEFAULT_FORBIDDEN),
+            acceptance_commands=["pytest -q", "ruff check ."],
+            change_summary=["Repair: " + ", ".join(f["check_name"] for f in validation.findings)],
+            is_repair=True,
+        )
+
+    def batch_prompt_pack(
+        self,
+        *,
+        plan: BatchPlanResult,
+        coder: CoderId | str,
+        bundle_url: str | None = None,
+    ) -> BatchPromptPack:
+        """Emit the AI-coder prompt for a planned batch (scoped to this batch only)."""
+        coder_id = normalize_prompt_coder(coder)
+        constraints = {
+            "allowed_files": plan.allowed_files,
+            "forbidden_changes": plan.forbidden_changes,
+            "acceptance_commands": plan.acceptance_commands,
+            "parent_commit_id": None,
+            "is_repair": plan.is_repair,
+        }
+        if self._engine and hasattr(self._engine, "coder_handoff"):
+            try:
+                handoff = self._engine.coder_handoff(
+                    {}, coder_id, batch=plan, bundle_url=bundle_url
+                )
+                return BatchPromptPack(
+                    coder=coder_id.value, prompt_text=handoff.prompt, constraints=constraints
+                )
+            except Exception:  # pragma: no cover - degraded to deterministic prompt
+                pass
+
+        tasks_md = "\n".join(f"- {t['task_id']}: {t['title']}" for t in plan.tasks)
+        allowed_md = "\n".join(f"- {p}" for p in plan.allowed_files)
+        forbidden_md = "\n".join(f"- {p}" for p in plan.forbidden_changes)
+        prompt_text = (
+            f"# Matrix Batch Prompt — {plan.title}\n\n"
+            f"Coder: {coder_id.value}\n"
+            f"Change type: {plan.change_type}\n\n"
+            f"## Goal\n{plan.goal_md}\n\n"
+            f"## Tasks (this batch only)\n{tasks_md}\n\n"
+            f"## You may edit ONLY\n{allowed_md}\n\n"
+            f"## You must NOT change\n{forbidden_md}\n\n"
+            f"## Acceptance\n" + "\n".join(f"- `{c}`" for c in plan.acceptance_commands) + "\n"
+        )
+        return BatchPromptPack(
+            coder=coder_id.value, prompt_text=prompt_text, constraints=constraints
+        )
+
+    def validate_changes(
+        self,
+        *,
+        changed_files: list[dict[str, Any]],
+        allowed_files: list[str] | None = None,
+        forbidden_changes: list[str] | None = None,
+        patch: str | None = None,
+        blueprint: Any | None = None,
+    ) -> ChangeValidationResult:
+        """Validate a submitted change set against the Matrix contract.
+
+        The deterministic contract check (control files untouched, changes within the allowlist)
+        is the canonical metadata-level authority and is used in mock mode and CI. When the SDK
+        engine is present and a real ``patch`` is supplied, validation is delegated to it.
+        """
+        if self._engine and hasattr(self._engine, "validate_ai_coder_patch") and patch and blueprint is not None:
+            try:
+                report = self._engine.validate_ai_coder_patch(patch=patch, blueprint=blueprint)
+                return _validation_from_report(report, changed_files)
+            except Exception:  # pragma: no cover - degraded to deterministic check
+                pass
+
+        allowed = tuple(allowed_files or _DEFAULT_ALLOWED_ROOTS)
+        forbidden = tuple(forbidden_changes or _DEFAULT_FORBIDDEN)
+        paths = [str(f["path"]) for f in changed_files]
+
+        added, changed, deleted = [], [], []
+        for f in changed_files:
+            kind = str(f.get("change_type", "modified"))
+            p = str(f["path"])
+            (added if kind == "added" else deleted if kind == "deleted" else changed).append(p)
+
+        findings: list[dict[str, Any]] = []
+        for p in paths:
+            if _is_forbidden(p, forbidden):
+                findings.append(
+                    {
+                        "severity": "error",
+                        "status": "failed",
+                        "check_name": "forbidden_changes_absent",
+                        "file_path": p,
+                        "message": f"Matrix control file '{p}' must not be modified.",
+                        "remediation": "Revert this file; control files are immutable for coders.",
+                    }
+                )
+        for p in paths:
+            if not _is_forbidden(p, forbidden) and not _within_allowlist(p, allowed):
+                findings.append(
+                    {
+                        "severity": "warning",
+                        "status": "failed",
+                        "check_name": "changes_within_allowlist",
+                        "file_path": p,
+                        "message": f"'{p}' is outside the allowed change roots {list(allowed)}.",
+                        "remediation": "Move the change into an allowed directory or update the batch scope.",
+                    }
+                )
+
+        has_error = any(f["severity"] == "error" for f in findings)
+        has_warning = any(f["severity"] == "warning" for f in findings)
+        if has_error:
+            status, score = "rejected", 0
+        elif has_warning:
+            status, score = "needs-repair", 60
+        else:
+            status, score = "approved", 100
+            findings.append(
+                {
+                    "severity": "info",
+                    "status": "passed",
+                    "check_name": "required_files_present",
+                    "file_path": None,
+                    "message": "All changes are within scope and no control files were modified.",
+                    "remediation": None,
+                }
+            )
+
+        tree_hash = sha256_text("|".join(sorted(paths)))
+        summary = f"{len(added)} added, {len(changed)} changed, {len(deleted)} deleted"
+        return ChangeValidationResult(
+            status=status,
+            score=score,
+            findings=findings,
+            tree_hash=tree_hash,
+            summary=summary,
+            added=sorted(added),
+            changed=sorted(changed),
+            deleted=sorted(deleted),
+        )
+
+    def diff_commits(
+        self,
+        *,
+        head_commit_id: str,
+        head_manifest: dict[str, Any],
+        base_commit_id: str | None = None,
+        base_manifest: dict[str, Any] | None = None,
+    ) -> CommitDiffResult:
+        """Produce a deterministic unified-diff-style summary between two commit manifests."""
+        base_manifest = base_manifest or {}
+        lines = [
+            f"--- {base_commit_id or 'EMPTY'}",
+            f"+++ {head_commit_id}",
+        ]
+        for path in head_manifest.get("added", []):
+            lines.append(f"A {path}")
+        for path in head_manifest.get("changed", []):
+            lines.append(f"M {path}")
+        for path in head_manifest.get("deleted", []):
+            lines.append(f"D {path}")
+        return CommitDiffResult(
+            base_commit_id=base_commit_id,
+            head_commit_id=head_commit_id,
+            patch="\n".join(lines) + "\n",
+        )
+
+    def _engine_report_from_validation(self, validation: ChangeValidationResult) -> Any:
+        # Best-effort reconstruction of an engine ValidationReport for plan_repair_batch.
+        from agent_generator.contracts.validation import (
+            ValidationReport,  # type: ignore[import-not-found]
+        )
+
+        return ValidationReport(
+            report_id=stable_id("val", validation.tree_hash),
+            bundle_id=validation.tree_hash,
+            status=validation.status,
+            score=validation.score,
+            violations=[f["message"] for f in validation.findings if f.get("severity") == "error"],
+            repair_prompt=None,
+            checks=[],
+            created_at=utc_now(),
+        )
+
     def _load_sdk_engine(self) -> Any:
         try:
             from agent_generator.engine import AgentGenerator  # type: ignore[import-not-found]
@@ -349,3 +684,67 @@ def _bundle_files() -> list[tuple[str, str]]:
 
 def _prompt_for(coder: str, bundle_id: str, fetch_url: str) -> str:
     return build_prompt_response(bundle_id=bundle_id, coder=coder, bundle_url=fetch_url).prompt
+
+
+def _title_from_goal(goal_md: str) -> str:
+    first = goal_md.strip().splitlines()[0] if goal_md.strip() else "Continue build"
+    first = first.lstrip("# ").strip()
+    return (first[:80] or "Continue build").strip()
+
+
+def _is_forbidden(path: str, forbidden: tuple[str, ...]) -> bool:
+    base = path.rsplit("/", 1)[-1]
+    if base in _CONTROL_FILES or base.startswith("MATRIX_"):
+        return True
+    return any(path == f or path.startswith(f) for f in forbidden)
+
+
+def _within_allowlist(path: str, allowed: tuple[str, ...]) -> bool:
+    return any(path == a or path.startswith(a) for a in allowed)
+
+
+def _batch_plan_from_engine(plan: Any) -> BatchPlanResult:
+    """Map the engine's ``BatchPlan`` (pydantic) onto the adapter's plain result."""
+    tasks = [t.model_dump() if hasattr(t, "model_dump") else dict(t) for t in plan.tasks]
+    change_type = plan.change_type.value if hasattr(plan.change_type, "value") else str(plan.change_type)
+    return BatchPlanResult(
+        batch_id=plan.batch_id,
+        ordinal=plan.ordinal,
+        title=plan.title,
+        goal_md=plan.goal_md,
+        change_type=change_type,
+        tasks=tasks,
+        allowed_files=list(plan.allowed_files),
+        forbidden_changes=list(getattr(plan, "forbidden_changes", _DEFAULT_FORBIDDEN)),
+        acceptance_commands=list(plan.acceptance_commands),
+        change_summary=list(plan.change_summary),
+        is_repair=bool(plan.is_repair),
+    )
+
+
+def _validation_from_report(report: Any, changed_files: list[dict[str, Any]]) -> ChangeValidationResult:
+    """Map the engine's ``ValidationReport`` onto the adapter's plain result (status verbatim)."""
+    status = report.status.value if hasattr(report.status, "value") else str(report.status)
+    findings = []
+    for check in getattr(report, "checks", []):
+        findings.append(
+            {
+                "severity": "error" if getattr(check, "status", "") == "failed" else "info",
+                "status": getattr(check, "status", "passed"),
+                "check_name": getattr(check, "check_id", "check"),
+                "file_path": getattr(check, "file_path", None),
+                "message": getattr(check, "message", ""),
+                "remediation": None,
+            }
+        )
+    paths = sorted(str(f["path"]) for f in changed_files)
+    return ChangeValidationResult(
+        status=status,
+        score=int(getattr(report, "score", 0) or 0),
+        findings=findings,
+        tree_hash=sha256_text("|".join(paths)),
+        summary=f"{len(changed_files)} files",
+        added=[],
+        changed=paths,
+        deleted=[],
+    )

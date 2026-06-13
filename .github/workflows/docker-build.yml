@@ -7,5 +7,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - run: docker build -f services/api/Dockerfile -t matrix-builder-api:ci .
-      - run: docker build -f workers/Dockerfile -t matrix-builder-worker:ci .
+      - name: Build the Hugging Face Spaces image (root Dockerfile, port 7860)
+        run: docker build -f Dockerfile -t matrix-builder:hf .
+      - name: Build the API image (compose/self-host)
+        run: docker build -f services/api/Dockerfile -t matrix-builder-api:ci .
+      - name: Build the worker image
+        run: docker build -f workers/Dockerfile -t matrix-builder-worker:ci .
