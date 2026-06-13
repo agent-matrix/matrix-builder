@@ -61,4 +61,19 @@ def current_user_id(
         ) from exc
 
 
-__all__ = ["AuthError", "verify_token", "user_id_from_token", "current_user_id"]
+def current_claims(
+    authorization: str | None = Header(default=None),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """FastAPI dependency: the full verified token claims (sub, email, …), or 401."""
+    try:
+        return verify_token(_bearer(authorization), settings)
+    except AuthError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing authentication token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+
+__all__ = ["AuthError", "verify_token", "user_id_from_token", "current_user_id", "current_claims"]

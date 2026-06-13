@@ -1084,3 +1084,19 @@ button,select,a{-webkit-tap-highlight-color:transparent;touch-action:manipulatio
 .auth-gshell{display:flex;justify-content:center;align-items:center;min-height:44px;color-scheme:light}
 .auth-gshell iframe{color-scheme:light}
 .mb-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;color:#04140c;background:linear-gradient(180deg,#53f39d,#22c878)}
+/* signed-in user menu */
+.mb-usermenu{position:relative;display:inline-flex}
+.mb-userbtn{background:none;border:0;padding:0;cursor:pointer;border-radius:50%;line-height:0}
+.mb-userbtn:hover .mb-avatar{box-shadow:0 0 0 3px rgba(34,200,120,.25)}
+.mb-menu-scrim{position:fixed;inset:0;z-index:90}
+.mb-menu{position:absolute;top:44px;right:0;z-index:91;min-width:200px;background:linear-gradient(165deg,#0c2417,#08170f);border:1px solid rgba(120,200,160,.2);border-radius:14px;box-shadow:0 24px 60px -24px rgba(0,0,0,.8);padding:6px;animation:fadeIn .15s ease}
+.mb-menu-id{padding:9px 12px 7px;color:#eaf3ee;font-weight:600;font-size:13.5px;display:flex;flex-direction:column;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:4px}
+.mb-menu-email{color:#7f9a8c;font-weight:400;font-size:12px;margin-top:2px}
+.mb-menu-item{display:block;width:100%;text-align:left;background:none;border:0;color:#cfe0d6;font-size:14px;font-weight:600;padding:9px 12px;border-radius:9px;cursor:pointer;transition:.12s}
+.mb-menu-item:hover{background:rgba(255,255,255,.06);color:#fff}
+.mb-menu-item.danger{color:#ff8c8c}
+.mb-menu-item.danger:hover{background:rgba(255,80,80,.12);color:#ffb3b3}
+.auth-mark-danger{background:rgba(255,80,80,.14);border-color:rgba(255,80,80,.35);color:#ff8c8c;font-weight:800}
+.auth-danger{width:100%;margin-top:12px;background:linear-gradient(120deg,#e0533a,#c0392b);color:#fff;border:0;border-radius:12px;min-height:50px;font-weight:700;font-size:15px;cursor:pointer;transition:.15s}
+.auth-danger:hover{filter:brightness(1.06);transform:translateY(-1px)}
+.auth-danger:disabled{opacity:.5;cursor:not-allowed;transform:none}

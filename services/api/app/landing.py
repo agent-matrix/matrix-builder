@@ -2,7 +2,7 @@
 
 Served at ``/`` so the Hugging Face Space (and any direct backend host) shows a
 real page — the API's "front face" — rather than a bare JSON. The full
-interactive UI lives on Vercel (``builder.matrixhub.io``); this page links to it
+interactive UI lives on Vercel (``build.matrixhub.io``); this page links to it
 and to the sibling services that make the ecosystem work end to end.
 """
 from __future__ import annotations
@@ -13,7 +13,7 @@ _GREEN = "#22c878"
 _MINT = "#53f39d"
 
 _LINKS = (
-    ("Open the app", "https://builder.matrixhub.io", "The full Matrix Builder UI (Vercel)"),
+    ("Open the app", "https://build.matrixhub.io", "The full Matrix Builder UI (Vercel)"),
     ("API docs", "/docs", "Interactive OpenAPI reference for this service"),
     ("Readiness", "/api/v1/ready", "Adapter + standards status JSON"),
     ("agent-generator", "https://ruslanmv-agent-generator.hf.space", "The deterministic generation engine"),
@@ -65,7 +65,7 @@ def landing_html(version: str) -> str:
   <h1>Give AI coders a<br><span>contract, not a prompt.</span></h1>
   <p class="lead">This is the <strong>Matrix Builder API</strong> — the control plane that turns
     one sentence into a signed, validated <strong>Matrix Bundle</strong> any AI coder can build
-    inside. The full interactive experience runs at <code>builder.matrixhub.io</code>.</p>
+    inside. The full interactive experience runs at <code>build.matrixhub.io</code>.</p>
   <p class="lead">Idea → <code>3 candidates</code> → Matrix Bundle → your AI coder builds under
     contract → <code>validated</code>.</p>
   <div class="grid">{cards}</div>

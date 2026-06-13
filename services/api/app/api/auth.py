@@ -1,13 +1,16 @@
 from __future__ import annotations
 import re
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
+from sqlalchemy import text
+from app.core.auth import current_claims
 from app.core.config import get_settings
 from app.core.accounts import get_account_store
+from app.db import engine as db
 from app.core.passwords import hash_password, verify_password
 from app.core import account_tokens as tok
-from app.core.emailer import activation_email, build_link, reset_email, send_email
+from app.core.emailer import activation_email, app_base, build_link, reset_email, send_email
 from app.core.google_auth import GoogleAuthError, mint_session_jwt, verify_google_id_token
 from app.core.logging import get_logger
 from app.core.session import create_guest_session, verify_session_token
@@ -67,6 +70,7 @@ class SignupRequest(BaseModel):
     email: str
     password: str
     name: Optional[str] = None
+    origin: Optional[str] = None
 
 
 @router.post('/auth/signup', status_code=status.HTTP_202_ACCEPTED)
@@ -84,7 +88,8 @@ def signup(payload: SignupRequest) -> dict[str, object]:
     if not existing:
         store.create(email, pw_hash, name=payload.name, is_active=False, provider="password")
     # If the account exists but is still inactive, we simply re-send the activation email below.
-    link = build_link("/auth/activate", tok.make_token(email, tok.ACTIVATE, settings), settings)
+    base = app_base(payload.origin, settings)
+    link = build_link("/auth/activate", tok.make_token(email, tok.ACTIVATE, settings), base)
     subject, html = activation_email(link)
     delivered = _deliver(email, subject, html, link)
     return {"status": "pending_activation",
@@ -129,6 +134,7 @@ def login(payload: LoginRequest) -> SessionResponse:
 
 class EmailOnlyRequest(BaseModel):
     email: str
+    origin: Optional[str] = None
 
 
 @router.post('/auth/password/forgot')
@@ -138,7 +144,8 @@ def password_forgot(payload: EmailOnlyRequest) -> dict[str, object]:
     acc = get_account_store().get_by_email(email)
     # Don't reveal whether the account exists; only actually send when it does.
     if acc and acc.provider == "password":
-        link = build_link("/auth/reset", tok.make_token(email, tok.RESET, settings), settings)
+        base = app_base(payload.origin, settings)
+        link = build_link("/auth/reset", tok.make_token(email, tok.RESET, settings), base)
         subject, html = reset_email(link)
         _deliver(email, subject, html, link)
     return {"sent": True, "message": _GENERIC_SENT}
@@ -193,6 +200,25 @@ def google_login(payload: GoogleAuthRequest) -> SessionResponse:
     token, exp = mint_session_jwt(f"account:{acc.id}", email=email, name=claims.get("name"))
     return SessionResponse(access_token=token, expires_at=exp,
                            user=AuthUser(email=email, name=claims.get("name"), picture=claims.get("picture")))
+
+
+# ---- delete account (GDPR: remove account + all owned data) --------------------------------
+@router.delete('/auth/account')
+def delete_account(claims: dict = Depends(current_claims)) -> dict[str, object]:
+    sub = str(claims.get("sub", ""))
+    email = claims.get("email")
+    # 1) Remove the credential/PII row.
+    if email:
+        get_account_store().delete_by_email(str(email))
+    # 2) Remove all workflow data owned by this user — deleting the users row cascades the whole
+    #    graph (projects → versions → batches → commits → runs → events → findings → artifacts).
+    if db.is_configured() and sub:
+        try:
+            with db.session_scope(user_id=sub) as s:
+                s.execute(text("DELETE FROM users WHERE id = :sub"), {"sub": sub})
+        except Exception as exc:  # noqa: BLE001 — best effort; account PII is already gone
+            logger.warning("workflow data delete skipped for %s: %s", sub, exc)
+    return {"deleted": True, "message": "Your account and data have been deleted."}
 
 
 # ---- guest session (unchanged) -------------------------------------------------------------

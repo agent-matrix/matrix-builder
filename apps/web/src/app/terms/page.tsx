@@ -11,7 +11,7 @@ export default function TermsPage() {
     <LegalShell title="Terms of Service" updated="13 June 2026">
       <p>
         Matrix Builder is a free, open-source project (MIT License). By using the hosted app at{" "}
-        <code>builder.matrixhub.io</code> (or any deployment of it), you agree to these simple terms.
+        <code>build.matrixhub.io</code> (or any deployment of it), you agree to these simple terms.
       </p>
 
       <h2 style={h2}>1. The service</h2>

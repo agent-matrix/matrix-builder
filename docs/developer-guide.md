@@ -48,7 +48,7 @@ ruslanmv.com /matrix-builder  →  Matrix Builder web (Next.js)
 Persistence: **Aiven PostgreSQL** with per-user row-level security (see
 [aiven.md](aiven.md)). Deploy: one Docker container on **Hugging Face Spaces**
 (see [deploy-huggingface.md](deploy-huggingface.md)). Going live for free
-(`builder.matrixhub.io` on Vercel → same-origin rewrites → HF Spaces):
+(`build.matrixhub.io` on Vercel → same-origin rewrites → HF Spaces):
 [go-live.md](go-live.md). Roadmap +
 status: [BATCH_BACKLOG.md](BATCH_BACKLOG.md) / [PROJECT_STATUS_AND_STRATEGY.md](PROJECT_STATUS_AND_STRATEGY.md).
 

@@ -3,7 +3,7 @@
 _Last updated: 13 June 2026_
 
 Matrix Builder is a free, open‑source project (MIT License). By using the hosted app at
-`builder.matrixhub.io` (or any deployment of it), you agree to these simple terms.
+`build.matrixhub.io` (or any deployment of it), you agree to these simple terms.
 
 ## 1. The service
 Matrix Builder turns an idea into a controlled "Matrix Bundle" (a blueprint, locked standards,
