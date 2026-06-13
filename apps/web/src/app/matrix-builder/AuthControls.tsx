@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { apiBaseUrl } from "@/lib/api-client";
-import { AUTH_EVENT, clearSession, getUser, setSession, type AuthUser } from "@/lib/auth-token";
+import { AUTH_EVENT, authHeaders, clearSession, getUser, setSession, type AuthUser } from "@/lib/auth-token";
 
 const ENV_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 const GIS_SRC = "https://accounts.google.com/gsi/client";
@@ -113,6 +113,11 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [delText, setDelText] = useState("");
+  const [delBusy, setDelBusy] = useState(false);
+  const [delError, setDelError] = useState<string | null>(null);
   const btnRef = useRef<HTMLDivElement | null>(null);
 
   const validEmail = EMAIL_RE.test(email.trim());
@@ -165,7 +170,7 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
     if (password !== confirm) return setError("Passwords don't match.");
     setBusy(true); setError(null);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/auth/signup`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: email.trim().toLowerCase(), password, name: name.trim() || null }) });
+      const res = await fetch(`${apiBaseUrl}/api/v1/auth/signup`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: email.trim().toLowerCase(), password, name: name.trim() || null, origin: window.location.origin }) });
       if (res.status === 409) { setError("An account with this email already exists — sign in instead."); go("signin"); return; }
       if (!res.ok) throw new Error(await detail(res, "Couldn't create your account."));
       const data = (await res.json()) as { email_sent?: boolean };
@@ -177,7 +182,7 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
   async function resendActivation() {
     setBusy(true); setError(null);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/auth/signup`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: email.trim().toLowerCase(), password, name: name.trim() || null }) });
+      const res = await fetch(`${apiBaseUrl}/api/v1/auth/signup`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: email.trim().toLowerCase(), password, name: name.trim() || null, origin: window.location.origin }) });
       if (!res.ok && res.status !== 409) throw new Error(await detail(res, "Couldn't resend."));
       onNotice?.("Verification email re-sent.");
     } catch (e) { setError(e instanceof Error ? e.message : "Couldn't resend."); }
@@ -186,18 +191,58 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
   async function submitForgot() {
     if (busy) return; setBusy(true); setError(null);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/auth/password/forgot`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: email.trim().toLowerCase() }) });
+      const res = await fetch(`${apiBaseUrl}/api/v1/auth/password/forgot`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: email.trim().toLowerCase(), origin: window.location.origin }) });
       if (!res.ok && res.status !== 200) throw new Error(await detail(res, "Couldn't send the reset link."));
       go("forgotSent");
     } catch (e) { setError(e instanceof Error ? e.message : "Couldn't send the reset link."); }
     finally { setBusy(false); }
   }
 
+  async function deleteAccount() {
+    if (delBusy) return;
+    setDelBusy(true); setDelError(null);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/v1/auth/account`, { method: "DELETE", headers: { ...authHeaders() } });
+      if (!res.ok) throw new Error(await detail(res, "Couldn't delete your account. Please try again."));
+      clearSession();
+      setConfirmDelete(false); setMenuOpen(false); setDelText("");
+      onNotice?.("Your account and data have been deleted.");
+    } catch (e) { setDelError(e instanceof Error ? e.message : "Delete failed."); }
+    finally { setDelBusy(false); }
+  }
+
   if (user && !open) {
+    const label = user.name || user.email || "Account";
     return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-        <span title={user.email ?? undefined} className="mb-avatar">{initials(user)}</span>
-        <button className="mb-back" type="button" onClick={() => { clearSession(); onNotice?.("Signed out"); }}>Sign out</button>
+      <span className="mb-usermenu">
+        <button type="button" className="mb-userbtn" onClick={() => setMenuOpen((v) => !v)} aria-haspopup="menu" aria-expanded={menuOpen}>
+          <span className="mb-avatar">{initials(user)}</span>
+        </button>
+        {menuOpen && (
+          <>
+            <div className="mb-menu-scrim" onClick={() => setMenuOpen(false)} />
+            <div className="mb-menu" role="menu">
+              <div className="mb-menu-id">{label}{user.email && user.name ? <span className="mb-menu-email">{user.email}</span> : null}</div>
+              <button type="button" className="mb-menu-item" onClick={() => { setMenuOpen(false); clearSession(); onNotice?.("Signed out"); }}>Sign out</button>
+              <button type="button" className="mb-menu-item danger" onClick={() => { setMenuOpen(false); setDelText(""); setDelError(null); setConfirmDelete(true); }}>Delete account</button>
+            </div>
+          </>
+        )}
+        {confirmDelete && (
+          <div className="auth-scrim" role="dialog" aria-modal="true" aria-label="Delete account" onMouseDown={(e) => { if (e.target === e.currentTarget) setConfirmDelete(false); }}>
+            <div className="auth-card">
+              <button className="auth-x" type="button" aria-label="Close" onClick={() => setConfirmDelete(false)}><Ic d={<path d="M6 6l12 12M18 6L6 18" />} size={16} /></button>
+              <div className="auth-mark auth-mark-danger">!</div>
+              <h2 className="auth-h">Delete account</h2>
+              <p className="auth-sub">This permanently deletes your account and <strong style={{ color: "#f7fff9" }}>all your data</strong> (builds, bundles, validations). This cannot be undone.</p>
+              <p className="auth-sub" style={{ marginTop: -8 }}>Type your email <strong style={{ color: "#f7fff9" }}>{user.email}</strong> to confirm:</p>
+              <AuthField icon={I.mail} type="email" placeholder="your email" value={delText} onChange={(v) => { setDelText(v); delError && setDelError(null); }} onEnter={deleteAccount} autoFocus />
+              <ErrorMsg msg={delError} />
+              <button className="auth-danger" type="button" disabled={delBusy || delText.trim().toLowerCase() !== (user.email ?? "").toLowerCase()} onClick={deleteAccount}>{delBusy ? "Deleting…" : "Delete my account"}</button>
+              <button className="auth-ghost" type="button" onClick={() => setConfirmDelete(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
       </span>
     );
   }

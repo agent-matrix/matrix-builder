@@ -17,10 +17,19 @@ logger = get_logger(__name__)
 _RESEND_ENDPOINT = "https://api.resend.com/emails"
 
 
-def build_link(path: str, token: str, settings: Settings | None = None) -> str:
+def app_base(origin: str | None, settings: Settings | None = None) -> str:
+    """Resolve the public base URL for links: trust the caller's origin only if it's allow-listed
+    (prevents activation/reset links pointing at an attacker domain); else fall back to config."""
     settings = settings or get_settings()
-    base = settings.public_app_url.rstrip("/")
-    return f"{base}{path}?token={quote(token)}"
+    if origin:
+        o = origin.strip().rstrip("/")
+        if o in settings.allowed_app_origins:
+            return o
+    return settings.public_app_url.rstrip("/")
+
+
+def build_link(path: str, token: str, base: str) -> str:
+    return f"{base.rstrip('/')}{path}?token={quote(token)}"
 
 
 def _send_via_sdk(to: str, subject: str, html: str, settings: Settings) -> bool | None:
@@ -50,7 +59,7 @@ def _send_via_http(to: str, subject: str, html: str, settings: Settings) -> bool
             "Authorization": f"Bearer {settings.resend_api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "User-Agent": "matrix-builder/1.0 (+https://builder.matrixhub.io)",
+            "User-Agent": "matrix-builder/1.0 (+https://build.matrixhub.io)",
         },
     )
     try:
@@ -126,4 +135,4 @@ def reset_email(link: str) -> tuple[str, str]:
     return "Reset your Matrix Builder password", html
 
 
-__all__ = ["build_link", "send_email", "activation_email", "reset_email"]
+__all__ = ["app_base", "build_link", "send_email", "activation_email", "reset_email"]

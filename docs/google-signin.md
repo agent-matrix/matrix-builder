@@ -28,7 +28,7 @@ client needs **only Authorized JavaScript origins** — **redirect URIs are not 
 
 ### Authorized JavaScript origins
 ```
-https://builder.matrixhub.io
+https://build.matrixhub.io
 https://www.matrixhub.io
 https://matrixhub.io
 https://ruslanmv-matrix-builder.hf.space
@@ -41,7 +41,7 @@ http://localhost:8000
 Leave **empty** — our token flow does not use them. (Only add the entries below if you later
 switch to a server-side authorization-code flow; not needed today.)
 ```
-https://builder.matrixhub.io/api/builder/auth/google/callback
+https://build.matrixhub.io/api/builder/auth/google/callback
 https://ruslanmv-matrix-builder.hf.space/api/builder/auth/google/callback
 http://localhost:7860/api/builder/auth/google/callback
 ```
@@ -113,7 +113,7 @@ form, no password hashes to leak — the modern, more secure pattern.
 |---|---|---|
 | `RESEND_API_KEY` | **Secret** | your Resend key, e.g. `re_xxxxxxxx` (unset = dev mode: the link is only logged, not sent) |
 | `EMAIL_FROM` | Variable | a **verified** Resend sender, e.g. `Matrix Builder <noreply@matrixhub.io>` (or `onboarding@resend.dev` while testing) |
-| `PUBLIC_APP_URL` | Variable | the public origin the magic link points to — `https://ruslanmv-matrix-builder.hf.space` (HF) or `https://builder.matrixhub.io` (Vercel) |
+| `PUBLIC_APP_URL` | Variable | the public origin the magic link points to — `https://ruslanmv-matrix-builder.hf.space` (HF) or `https://build.matrixhub.io` (Vercel) |
 
 Get the key at **resend.com → API Keys → Create**. To send from `@matrixhub.io`, verify the
 domain in Resend (Domains → Add) — your DNS already has the `resend._domainkey` + SPF records

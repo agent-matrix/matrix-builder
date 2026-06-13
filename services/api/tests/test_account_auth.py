@@ -83,6 +83,19 @@ def test_signup_does_not_502_when_email_fails(client, monkeypatch):
     assert client.post("/api/v1/auth/activate", json={"token": tok.make_token(EMAIL, tok.ACTIVATE)}).status_code == 200
 
 
+def test_delete_account_removes_login(client):
+    client.post("/api/v1/auth/signup", json={"email": EMAIL, "password": PW})
+    act = client.post("/api/v1/auth/activate", json={"token": tok.make_token(EMAIL, tok.ACTIVATE)})
+    token = act.json()["access_token"]
+    # Deleting requires authentication.
+    assert client.delete("/api/v1/auth/account").status_code == 401
+    r = client.delete("/api/v1/auth/account", headers={"authorization": f"Bearer {token}"})
+    assert r.status_code == 200 and r.json()["deleted"] is True
+    # The account is gone — login no longer works, and the email is free to re-register.
+    assert client.post("/api/v1/auth/login", json={"email": EMAIL, "password": PW}).status_code == 401
+    assert client.post("/api/v1/auth/signup", json={"email": EMAIL, "password": PW}).status_code == 202
+
+
 def test_google_creates_active_account(client, monkeypatch):
     monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client.apps.googleusercontent.com")
     get_settings.cache_clear()

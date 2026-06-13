@@ -3,12 +3,12 @@ import type { NextConfig } from "next";
 /**
  * Go-live topology (Phase 1, free):
  *
- *   builder.matrixhub.io  ──►  this Next.js app on Vercel
+ *   build.matrixhub.io  ──►  this Next.js app on Vercel
  *        /api/builder/*         →  Matrix Builder API   (Hugging Face Space)
  *        /api/agent-generator/* →  agent-generator      (Hugging Face Space)
  *        /api/ollabridge/*      →  OllaBridge Cloud LLM  (Hugging Face Space)
  *
- * Same-origin rewrites keep every backend behind builder.matrixhub.io, so the
+ * Same-origin rewrites keep every backend behind build.matrixhub.io, so the
  * browser never sees a raw *.hf.space URL and there is no CORS to configure.
  * The frontend itself talks only to /api/builder (NEXT_PUBLIC_API_BASE_URL);
  * the agent-generator and ollabridge rewrites expose those services on the same

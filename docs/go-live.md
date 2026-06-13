@@ -6,12 +6,12 @@ production backend later. This is the design + runbook; the HF container details
 
 ## The decision
 
-**One new public URL — `builder.matrixhub.io` — served by Vercel.** The Next.js app
+**One new public URL — `build.matrixhub.io` — served by Vercel.** The Next.js app
 proxies every backend through same-origin `/api/*` rewrites to free Hugging Face Spaces.
 
 Why this and not the alternatives:
 
-- **No new gateway, no CORS.** The browser only ever talks to `builder.matrixhub.io`.
+- **No new gateway, no CORS.** The browser only ever talks to `build.matrixhub.io`.
   Rewrites run server-side on Vercel; backends stay on `*.hf.space` but are never exposed.
 - **Free.** Vercel Hobby + HF free Spaces. HF custom domains need a paid plan, so we
   proxy the raw Space hosts instead of pointing DNS at them.
@@ -20,7 +20,7 @@ Why this and not the alternatives:
   (`getRunEvents`), so there is **no WebSocket** to tunnel through the proxy at launch.
 
 ```text
-                         builder.matrixhub.io  (Vercel, Next.js)
+                         build.matrixhub.io  (Vercel, Next.js)
   browser ──────────────►  /                      app shell + pages
                            /api/builder/*       ─► ruslanmv-matrix-builder.hf.space
                            /api/agent-generator/* ─► ruslanmv-agent-generator.hf.space
@@ -36,7 +36,7 @@ CLI, GitPilot, and future clients.
 | Host | Role | Status |
 |---|---|---|
 | `www.matrixhub.io` | marketing site + `/definitions` (the signed standard) | existing — **don't touch** |
-| `builder.matrixhub.io` | Matrix Builder app (this deploy) | **new** |
+| `build.matrixhub.io` | Matrix Builder app (this deploy) | **new** |
 | `admin.matrixhub.io` | admin console | reserved (existing) |
 | `api.matrixhub.io` | dedicated production backend | reserved (Phase 3) |
 | `runtime.matrixhub.io` | enterprise dedicated inference (`agent-matrix/matrix-runtime`) | reserved (Phase 4) |
@@ -56,7 +56,7 @@ The standard stays at `www.matrixhub.io/definitions` — no new domain for it.
 Add one record (the existing matrixhub.io records stay as-is):
 
 ```text
-builder.matrixhub.io   CNAME   <builder-vercel-project>.vercel-dns-017.com   (DNS only / not proxied)
+build.matrixhub.io   CNAME   <builder-vercel-project>.vercel-dns-017.com   (DNS only / not proxied)
 ```
 
 Vercel shows the exact target when you add the domain to the project; use that value.
@@ -68,7 +68,7 @@ UI) and inside the HF Space (full-stack demo) — never copied or forked by hand
 
 | Home | Builds from | Backend it talks to |
 |---|---|---|
-| **Vercel** `builder.matrixhub.io` | `apps/web` (root dir) | rewrites `/api/builder/*` → the HF Space's public `/api/builder` |
+| **Vercel** `build.matrixhub.io` | `apps/web` (root dir) | rewrites `/api/builder/*` → the HF Space's public `/api/builder` |
 | **HF Space** `ruslanmv-matrix-builder.hf.space` | `apps/web` staged as `web/` by CI, built in-image | local FastAPI on `127.0.0.1:8000` |
 
 `next.config.ts` resolves `rewrites()` at **build time** into the routes manifest, so the
@@ -96,7 +96,7 @@ persistence. To enable CI auto-deploy, add the repo secret `HF_TOKEN` (write sco
 
 - **Phase 0 — Prep.** Don't change existing matrixhub.io DNS. Create the Vercel project from
   `apps/web`; deploy the matrix-builder HF Space.
-- **Phase 1 — Free launch (this doc).** `builder.matrixhub.io` on Vercel → same-origin
+- **Phase 1 — Free launch (this doc).** `build.matrixhub.io` on Vercel → same-origin
   rewrites → HF Spaces. DB = SQLite demo *or* Aiven `matrix_app`. Polling, no WS.
 - **Phase 2 — Beta.** Aiven persistence + per-user RLS + real `MB_JWT_SECRET`; quotas on.
 - **Phase 3 — Production backend.** Move the API to `api.matrixhub.io` (own infra/container);
@@ -110,6 +110,6 @@ persistence. To enable CI auto-deploy, add the repo secret `HF_TOKEN` (write sco
    so `www.matrixhub.io/definitions` publishes.
 2. Deploy the matrix-builder HF Space; set `DATABASE_URL` + `MB_JWT_SECRET` secrets.
 3. Create the Vercel project (root `apps/web`); set the env vars above.
-4. Add `builder.matrixhub.io` to the Vercel project; create the `CNAME` from the DNS section.
-5. Verify: `https://builder.matrixhub.io` loads, and
-   `https://builder.matrixhub.io/api/builder/health` returns the backend health payload.
+4. Add `build.matrixhub.io` to the Vercel project; create the `CNAME` from the DNS section.
+5. Verify: `https://build.matrixhub.io` loads, and
+   `https://build.matrixhub.io/api/builder/health` returns the backend health payload.
