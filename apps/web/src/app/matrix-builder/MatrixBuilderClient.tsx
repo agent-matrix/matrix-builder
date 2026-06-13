@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import AuthControls from "./AuthControls";
+import { AUTH_EVENT, getUser } from "@/lib/auth-token";
 import { AI_CODERS, IDEA_EXAMPLES, SCANNING_MESSAGES } from "@/lib/constants";
 import { createBundleFiles } from "@/lib/matrix-bundle";
 import { createBlueprintCandidates } from "@/lib/matrix-demo-data";
@@ -612,6 +614,8 @@ function BundleResult({
   files,
   showToast,
   onNew,
+  signedIn,
+  onMyBuilds,
 }: {
   candidate: BlueprintCandidate;
   coder: CoderId;
@@ -619,6 +623,8 @@ function BundleResult({
   files: BundleFile[];
   showToast: (message: string) => void;
   onNew: () => void;
+  signedIn: boolean;
+  onMyBuilds: () => void;
 }) {
   const buildName = candidate.name;
   const coderEntry = AI_CODERS.find((item) => item.id === coder) ?? AI_CODERS[1];
@@ -710,8 +716,8 @@ function BundleResult({
             <div className="br-next-top"><span className="br-next-ic"><MatrixIcon size={22}>{icons.plug}</MatrixIcon></span><span className="br-next-k">Next step</span></div>
             <div className="br-next-t">Run this prompt in your AI coder.</div>
             <div className="br-next-d">Open your preferred AI coder, paste the prompt, and let it implement Batch {cur.n}.</div>
-            <button className="bo-btn primary full" type="button" onClick={() => showToast("Sign in to validate AI output")}><MatrixIcon size={16}>{icons.check}</MatrixIcon>I ran this batch</button>
-            <button className="bo-btn full" type="button" onClick={() => showToast("Sign in to keep the build timeline")}><MatrixIcon size={16}>{icons.clock}</MatrixIcon>View timeline</button>
+            <button className="bo-btn primary full" type="button" onClick={() => (signedIn ? (showToast("Batch marked as run — saved to your builds."), onMyBuilds()) : showToast("Sign in to validate AI output"))}><MatrixIcon size={16}>{icons.check}</MatrixIcon>I ran this batch</button>
+            <button className="bo-btn full" type="button" onClick={() => (signedIn ? onMyBuilds() : showToast("Sign in to keep the build timeline"))}><MatrixIcon size={16}>{icons.clock}</MatrixIcon>View timeline</button>
             <button className="bo-btn full" type="button" onClick={downloadZip}><MatrixIcon size={16}>{icons.download}</MatrixIcon>Download ZIP ({files.length} files)</button>
           </article>
         </aside>
@@ -730,7 +736,20 @@ export default function MatrixBuilderClient() {
   const [coder, setCoder] = useState<CoderId>("claude-code");
   const [toast, setToast] = useState<string | null>(null);
   const [animationSafe, setAnimationSafe] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const refresh = () => setSignedIn(Boolean(getUser()));
+    refresh();
+    window.addEventListener(AUTH_EVENT, refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener(AUTH_EVENT, refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
 
   useEffect(() => {
     setAnimationSafe(false);
@@ -812,7 +831,7 @@ export default function MatrixBuilderClient() {
       )}
 
       {phase === "bundle" && chosen && (
-        <BundleResult candidate={chosen} coder={coder} setCoder={setCoder} files={files} showToast={showToast} onNew={reset} />
+        <BundleResult candidate={chosen} coder={coder} setCoder={setCoder} files={files} showToast={showToast} onNew={reset} signedIn={signedIn} onMyBuilds={() => router.push("/matrix-builder/builds")} />
       )}
 
       {toast && <div className="mb-toast"><MatrixIcon size={17}>{icons.check}</MatrixIcon>{toast}</div>}

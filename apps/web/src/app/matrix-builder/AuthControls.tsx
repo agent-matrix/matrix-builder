@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { apiBaseUrl } from "@/lib/api-client";
-import { AUTH_EVENT, authHeaders, clearSession, getUser, setSession, type AuthUser } from "@/lib/auth-token";
+import { AUTH_EVENT, authHeaders, clearSession, getAuthToken, getUser, setSession, type AuthUser } from "@/lib/auth-token";
 
 const ENV_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 const GIS_SRC = "https://accounts.google.com/gsi/client";
@@ -20,6 +21,9 @@ const I = {
   eyeOff: <><path d="M3 3l18 18" /><path d="M10.6 10.6a3 3 0 004.2 4.2" /><path d="M9.4 5.6A9.6 9.6 0 0112 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 01-3 3.6M6.2 6.8A16 16 0 002.5 12S6 18.5 12 18.5c.9 0 1.7-.1 2.5-.3" /></>,
   check: <path d="M5 13l4 4 10-11" />,
   mailBig: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3.5 6.5l8.5 6 8.5-6" /></>,
+  cube: <><path d="M12 2.7l8 4.6v9.4l-8 4.6-8-4.6V7.3z" /><path d="M4 7.3l8 4.7 8-4.7M12 12v8.6" /></>,
+  gear: <><circle cx="12" cy="12" r="3.2" /><path d="M19.4 13.5a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-2.9-1.2l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00-1.2-2.9H3a2 2 0 110-4h.1A1.7 1.7 0 004.3 7l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.6V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.6 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.6 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" /></>,
+  logout: <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></>,
 };
 function Ic({ d, size = 18, sw = 1.7 }: { d: ReactNode; size?: number; sw?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>;
@@ -118,7 +122,12 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
   const [delText, setDelText] = useState("");
   const [delBusy, setDelBusy] = useState(false);
   const [delError, setDelError] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsName, setSettingsName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState<string | null>(null);
   const btnRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
 
   const validEmail = EMAIL_RE.test(email.trim());
   const showGoogle = Boolean(clientId);
@@ -211,6 +220,24 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
     finally { setDelBusy(false); }
   }
 
+  async function saveName() {
+    if (savingName) return;
+    setSavingName(true); setSettingsMsg(null);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/v1/auth/account`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ name: settingsName.trim() || null }),
+      });
+      if (!res.ok) throw new Error(await detail(res, "Couldn't save."));
+      const data = (await res.json()) as AuthUser;
+      const token = getAuthToken();
+      if (token) setSession(token, { ...(getUser() ?? {}), name: data.name ?? null });
+      setSettingsMsg("Saved.");
+    } catch (e) { setSettingsMsg(e instanceof Error ? e.message : "Couldn't save."); }
+    finally { setSavingName(false); }
+  }
+
   if (user && !open) {
     const label = user.name || user.email || "Account";
     return (
@@ -222,12 +249,50 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
           <>
             <div className="mb-menu-scrim" onClick={() => setMenuOpen(false)} />
             <div className="mb-menu" role="menu">
-              <div className="mb-menu-id">{label}{user.email && user.name ? <span className="mb-menu-email">{user.email}</span> : null}</div>
-              <button type="button" className="mb-menu-item" onClick={() => { setMenuOpen(false); clearSession(); onNotice?.("Signed out"); }}>Sign out</button>
-              <button type="button" className="mb-menu-item danger" onClick={() => { setMenuOpen(false); setDelText(""); setDelError(null); setConfirmDelete(true); }}>Delete account</button>
+              <div className="mb-menu-id">
+                <span className="mb-menu-name">{label}</span>
+                {user.email ? <span className="mb-menu-email">{user.email}</span> : null}
+              </div>
+              <button type="button" className="mb-menu-item" onClick={() => { setMenuOpen(false); router.push("/matrix-builder/builds"); }}>
+                <Ic d={I.cube} size={17} /> My Builds
+              </button>
+              <button type="button" className="mb-menu-item" onClick={() => { setMenuOpen(false); setSettingsName(user.name ?? ""); setSettingsMsg(null); setSettingsOpen(true); }}>
+                <Ic d={I.gear} size={17} /> Settings
+              </button>
+              <div className="mb-menu-sep" />
+              <button type="button" className="mb-menu-item danger" onClick={() => { setMenuOpen(false); clearSession(); onNotice?.("Signed out"); }}>
+                <Ic d={I.logout} size={17} /> Sign out
+              </button>
             </div>
           </>
         )}
+
+        {settingsOpen && (
+          <div className="auth-scrim" role="dialog" aria-modal="true" aria-label="Settings" onMouseDown={(e) => { if (e.target === e.currentTarget) setSettingsOpen(false); }}>
+            <div className="auth-card auth-card-wide">
+              <button className="auth-x" type="button" aria-label="Close" onClick={() => setSettingsOpen(false)}><Ic d={<path d="M6 6l12 12M18 6L6 18" />} size={16} /></button>
+              <h2 className="auth-h">Settings</h2>
+              <p className="auth-sub">Manage your account.</p>
+
+              <div className="set-label">Email</div>
+              <div className="set-readonly">{user.email}</div>
+
+              <div className="set-label">Display name</div>
+              <AuthField icon={I.user} type="text" placeholder="Your name" value={settingsName} onChange={(v) => { setSettingsName(v); setSettingsMsg(null); }} onEnter={saveName} />
+              <button className="auth-email" type="button" disabled={savingName} onClick={saveName}>{savingName ? "Saving…" : "Save changes"}</button>
+              {settingsMsg && <div className={settingsMsg === "Saved." ? "set-ok" : "auth-err"}>{settingsMsg}</div>}
+
+              <div className="set-danger">
+                <div className="set-danger-h">Danger zone</div>
+                <div className="set-danger-row">
+                  <div><div className="set-danger-t">Delete account</div><div className="set-danger-d">Permanently delete your account and all your data.</div></div>
+                  <button className="auth-danger set-danger-btn" type="button" onClick={() => { setSettingsOpen(false); setDelText(""); setDelError(null); setConfirmDelete(true); }}>Delete account</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {confirmDelete && (
           <div className="auth-scrim" role="dialog" aria-modal="true" aria-label="Delete account" onMouseDown={(e) => { if (e.target === e.currentTarget) setConfirmDelete(false); }}>
             <div className="auth-card">

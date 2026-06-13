@@ -1,0 +1,47 @@
+name: e2e-quality
+
+# Manual end-to-end quality gate across the live Matrix ecosystem
+# (matrix-builder + agent-generator + gitpilot). Generates the canonical
+# "hello world web page" and verifies every service + the wiring.
+#
+# Run it from: Actions → e2e-quality → Run workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mb:
+        description: "matrix-builder base URL"
+        required: false
+        default: "https://ruslanmv-matrix-builder.hf.space"
+      ag:
+        description: "agent-generator base URL"
+        required: false
+        default: "https://ruslanmv-agent-generator.hf.space"
+      gp:
+        description: "gitpilot base URL"
+        required: false
+        default: "https://ruslanmv-gitpilot.hf.space"
+      prompt:
+        description: "generation prompt"
+        required: false
+        default: "A simple hello world web page"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-quality
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ecosystem E2E quality check
+        env:
+          MB: ${{ inputs.mb }}
+          AG: ${{ inputs.ag }}
+          GP: ${{ inputs.gp }}
+          PROMPT: ${{ inputs.prompt }}
+        run: bash scripts/e2e_ecosystem_check.sh
