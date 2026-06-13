@@ -4,10 +4,15 @@ export const BUNDLE_API_BASE = "https://api.ruslanmv.com/v1/matrix-bundles";
 
 export const IDEA_EXAMPLES = [
   "A GitHub repo intelligence agent",
-  "A document Q&A assistant",
+  "A document Q&A assistant with citations",
   "A developer portfolio reviewer",
-  "A local trend scout for AI topics",
+  "A trend scout for AI research topics",
   "A meeting-notes summarizer agent",
+  "A REST API with auth and a dashboard",
+  "A changelog & release-notes generator",
+  "A Slack bot that triages support tickets",
+  "A CLI that scaffolds microservices",
+  "A security review agent for pull requests",
 ] as const;
 
 export const AI_CODERS: AiCoder[] = [

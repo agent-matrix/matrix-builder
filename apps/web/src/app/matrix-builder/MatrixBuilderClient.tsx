@@ -13,7 +13,7 @@ import type { BlueprintCandidate } from "@/types/blueprint";
 import type { BundleFile } from "@/types/bundle";
 import type { CoderId } from "@/types/coder";
 
-type Phase = "hero" | "scanning" | "candidates" | "bundle";
+type Phase = "hero" | "scanning" | "candidates" | "bundle" | "submit" | "validation";
 
 type IconDefinition = ReactNode;
 
@@ -124,6 +124,25 @@ const icons = {
     <>
       <circle cx="12" cy="12" r="8.5" />
       <path d="M12 7.5V12l3 1.8" />
+    </>
+  ),
+  edit: (
+    <>
+      <path d="M4 20h4l10-10-4-4L4 16v4z" />
+      <path d="M13.5 6.5l4 4" />
+    </>
+  ),
+  cpu: (
+    <>
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+      <path d="M9.5 9.5h5v5h-5z" />
+      <path d="M9 3v2M15 3v2M9 19v2M15 19v2M3 9h2M3 15h2M19 9h2M19 15h2" />
+    </>
+  ),
+  bundles: (
+    <>
+      <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
+      <path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
     </>
   ),
 };
@@ -480,6 +499,13 @@ function FileTree({ files }: { files: BundleFile[] }) {
 }
 
 function LandingHero({ idea, setIdea, generate }: { idea: string; setIdea: (value: string) => void; generate: () => void }) {
+  // One rotating "Try" suggestion — a fresh, random idea on every visit (and on shuffle).
+  const [suggestion, setSuggestion] = useState<string>(IDEA_EXAMPLES[0]);
+  const shuffle = () => setSuggestion((cur) => {
+    const pool = IDEA_EXAMPLES.filter((e) => e !== cur);
+    return pool[Math.floor(Math.random() * pool.length)] ?? cur;
+  });
+  useEffect(() => { setSuggestion(IDEA_EXAMPLES[Math.floor(Math.random() * IDEA_EXAMPLES.length)]); }, []);
   return (
     <>
       <div className="l-dark">
@@ -487,10 +513,9 @@ function LandingHero({ idea, setIdea, generate }: { idea: string; setIdea: (valu
           <div className="l-wrap l-head-in">
             <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
             <nav className="l-nav">
-              <a href="#how">Docs</a>
-              <a href="#what">Examples</a>
-              <a href="#trust">Trust</a>
-              <a className="gh" href="https://github.com/ruslanmv" target="_blank" rel="noreferrer"><MatrixIcon size={18}>{icons.git}</MatrixIcon>GitHub</a>
+              <a href="/matrix-builder/about">About</a>
+              <a href="https://agent-matrix.github.io/matrix-definitions/definitions/">Definitions</a>
+              <a className="gh" href="https://github.com/agent-matrix/matrix-builder" target="_blank" rel="noreferrer"><MatrixIcon size={18}>{icons.git}</MatrixIcon>GitHub</a>
               <AuthControls />
             </nav>
           </div>
@@ -509,7 +534,8 @@ function LandingHero({ idea, setIdea, generate }: { idea: string; setIdea: (valu
                 </div>
                 <div className="l-chips">
                   <span className="ck">Try</span>
-                  {IDEA_EXAMPLES.slice(0, 3).map((example) => <button className="l-chip" type="button" key={example} onClick={() => setIdea(example)}>{example}</button>)}
+                  <button className="l-chip" type="button" onClick={() => setIdea(suggestion)} key={suggestion}>{suggestion}</button>
+                  <button className="l-shuffle" type="button" onClick={shuffle} aria-label="Show another idea" title="Show another idea">↻</button>
                 </div>
               </div>
             </div>
@@ -615,7 +641,8 @@ function BundleResult({
   showToast,
   onNew,
   signedIn,
-  onMyBuilds,
+  onSubmit,
+  onTimeline,
 }: {
   candidate: BlueprintCandidate;
   coder: CoderId;
@@ -624,7 +651,8 @@ function BundleResult({
   showToast: (message: string) => void;
   onNew: () => void;
   signedIn: boolean;
-  onMyBuilds: () => void;
+  onSubmit: () => void;
+  onTimeline: () => void;
 }) {
   const buildName = candidate.name;
   const coderEntry = AI_CODERS.find((item) => item.id === coder) ?? AI_CODERS[1];
@@ -716,11 +744,127 @@ function BundleResult({
             <div className="br-next-top"><span className="br-next-ic"><MatrixIcon size={22}>{icons.plug}</MatrixIcon></span><span className="br-next-k">Next step</span></div>
             <div className="br-next-t">Run this prompt in your AI coder.</div>
             <div className="br-next-d">Open your preferred AI coder, paste the prompt, and let it implement Batch {cur.n}.</div>
-            <button className="bo-btn primary full" type="button" onClick={() => (signedIn ? (showToast("Batch marked as run — saved to your builds."), onMyBuilds()) : showToast("Sign in to validate AI output"))}><MatrixIcon size={16}>{icons.check}</MatrixIcon>I ran this batch</button>
-            <button className="bo-btn full" type="button" onClick={() => (signedIn ? onMyBuilds() : showToast("Sign in to keep the build timeline"))}><MatrixIcon size={16}>{icons.clock}</MatrixIcon>View timeline</button>
+            <button className="bo-btn primary full" type="button" onClick={onSubmit}><MatrixIcon size={16}>{icons.check}</MatrixIcon>I ran this batch</button>
+            <button className="bo-btn full" type="button" onClick={() => (signedIn ? onTimeline() : showToast("Sign in to keep the build timeline"))}><MatrixIcon size={16}>{icons.clock}</MatrixIcon>View timeline</button>
             <button className="bo-btn full" type="button" onClick={downloadZip}><MatrixIcon size={16}>{icons.download}</MatrixIcon>Download ZIP ({files.length} files)</button>
           </article>
         </aside>
+      </div>
+    </div>
+  );
+}
+
+// Submit-AI-result page — paste/diff/zip tabs, then "Check AI output" runs validation.
+function SubmitResult({
+  showToast,
+  onNew,
+  onBack,
+  onValidate,
+}: {
+  showToast: (message: string) => void;
+  onNew: () => void;
+  onBack: () => void;
+  onValidate: () => void;
+}) {
+  const cur = buildStages()[0];
+  const [resTab, setResTab] = useState<"summary" | "diff" | "zip">("summary");
+  const [result, setResult] = useState("");
+  const tabs: Array<[typeof resTab, string, keyof typeof icons]> = [
+    ["summary", "Paste summary", "edit"],
+    ["diff", "Paste git diff", "code"],
+    ["zip", "Upload ZIP", "download"],
+  ];
+  const placeholder =
+    resTab === "zip"
+      ? "Drop the generated project ZIP here, or click to browse."
+      : "Paste the AI coder result here…\n\nFiles changed:\n- backend/main.py\n\nCommands run:\n- pytest\n\nResult: Build passed.";
+
+  return (
+    <div className="mb-dark-page">
+      <header className="mb-detail-bar"><div className="l-wrap dbar-in">
+        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <div className="dbar-r" style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+          <button className="l-newbuild" type="button" onClick={onNew}><MatrixIcon size={15}>{icons.plus}</MatrixIcon>New build</button>
+          <AuthControls onNotice={showToast} />
+        </div>
+      </div></header>
+
+      <div className="l-wrap srp">
+        <button className="upd-back reveal" type="button" onClick={onBack}><MatrixIcon size={15}>{icons.back}</MatrixIcon>Batch {cur.n}</button>
+        <h1 className="val-h1 reveal">Submit AI result</h1>
+        <p className="upd-sub reveal">Paste what your AI coder produced for Batch {cur.n} — {cur.title}. Matrix Builder will validate it against the contract.</p>
+
+        <article className="darkpanel srp-card reveal">
+          <div className="paste-tabs">
+            {tabs.map(([key, label, icon]) => (
+              <button key={key} type="button" className={`ptab${resTab === key ? " on" : ""}`} onClick={() => setResTab(key)}><MatrixIcon size={14}>{icons[icon]}</MatrixIcon>{label}</button>
+            ))}
+          </div>
+          <textarea className="paste-text tall" value={result} onChange={(event) => setResult(event.target.value)} placeholder={placeholder} />
+          <div className="paste-hint">Include files changed, commands run, test results, and notes.</div>
+          <div className="paste-actions">
+            <button className="bo-btn primary" type="button" onClick={onValidate}><MatrixIcon size={16}>{icons.check}</MatrixIcon>Check AI output</button>
+            <button className="bo-btn" type="button" onClick={onBack}>Cancel</button>
+          </div>
+        </article>
+        <div className="upd-note reveal"><MatrixIcon size={15}>{icons.shield}</MatrixIcon>We&apos;ll validate the output and update the batch status.</div>
+      </div>
+    </div>
+  );
+}
+
+// Validation-result page — the contract check passed; offer to continue or view the timeline.
+function ValidationResult({
+  coder,
+  showToast,
+  onNew,
+  onBack,
+  onTimeline,
+  onContinue,
+}: {
+  coder: CoderId;
+  showToast: (message: string) => void;
+  onNew: () => void;
+  onBack: () => void;
+  onTimeline: () => void;
+  onContinue: () => void;
+}) {
+  const cur = buildStages()[0];
+  const coderEntry = AI_CODERS.find((item) => item.id === coder) ?? AI_CODERS[1];
+  const commitN = `#0${cur.n}`;
+  const nextN = String(Number(cur.n) + 1).padStart(2, "0");
+
+  return (
+    <div className="mb-dark-page">
+      <header className="mb-detail-bar"><div className="l-wrap dbar-in">
+        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <div className="dbar-r" style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+          <button className="l-newbuild" type="button" onClick={onNew}><MatrixIcon size={15}>{icons.plus}</MatrixIcon>New build</button>
+          <AuthControls onNotice={showToast} />
+        </div>
+      </div></header>
+
+      <div className="l-wrap val">
+        <button className="upd-back reveal" type="button" onClick={onBack}><MatrixIcon size={15}>{icons.back}</MatrixIcon>Batch {cur.n}</button>
+        <h1 className="val-h1 reveal">Validation Result</h1>
+        <p className="upd-sub reveal">Check if the AI coder followed the contract.</p>
+
+        <article className="val-hero passed reveal">
+          <span className="vh-ic ok"><MatrixIcon size={30}>{icons.check}</MatrixIcon></span>
+          <div><div className="vh-title">Batch {cur.n} passed</div><div className="vh-note">Matrix Commit {commitN} created. The AI coder followed the contract.</div></div>
+        </article>
+
+        <article className="darkpanel val-info reveal">
+          <div className="vi-row"><span className="vi-k"><MatrixIcon size={16}>{icons.cpu}</MatrixIcon>AI coder used</span><span className="vi-v"><span className="vi-chip">{coderEntry.short}</span></span></div>
+          <div className="vi-row"><span className="vi-k"><MatrixIcon size={16}>{icons.check}</MatrixIcon>Validation</span><span className="vi-v"><span className="vi-pass"><MatrixIcon size={14}>{icons.check}</MatrixIcon>Passed</span></span></div>
+          <div className="vi-row"><span className="vi-k"><MatrixIcon size={16}>{icons.bundles}</MatrixIcon>Matrix Commit</span><span className="vi-v mono-chip">{commitN}</span></div>
+        </article>
+
+        <div className="val-actions reveal">
+          <button className="bo-btn primary" type="button" onClick={onContinue}><MatrixIcon size={16}>{icons.plus}</MatrixIcon>Generate Batch {nextN}</button>
+          <button className="bo-btn" type="button" onClick={onTimeline}><MatrixIcon size={16}>{icons.clock}</MatrixIcon>View timeline</button>
+        </div>
+        <div className="val-tertiary reveal"><button className="val-tlink" type="button" onClick={onTimeline}>Finish build early</button></div>
       </div>
     </div>
   );
@@ -831,7 +975,37 @@ export default function MatrixBuilderClient() {
       )}
 
       {phase === "bundle" && chosen && (
-        <BundleResult candidate={chosen} coder={coder} setCoder={setCoder} files={files} showToast={showToast} onNew={reset} signedIn={signedIn} onMyBuilds={() => router.push("/matrix-builder/builds")} />
+        <BundleResult
+          candidate={chosen}
+          coder={coder}
+          setCoder={setCoder}
+          files={files}
+          showToast={showToast}
+          onNew={reset}
+          signedIn={signedIn}
+          onSubmit={() => { setPhase("submit"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          onTimeline={() => router.push("/matrix-builder/builds")}
+        />
+      )}
+
+      {phase === "submit" && chosen && (
+        <SubmitResult
+          showToast={showToast}
+          onNew={reset}
+          onBack={() => { setPhase("bundle"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          onValidate={() => { setPhase("validation"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+        />
+      )}
+
+      {phase === "validation" && chosen && (
+        <ValidationResult
+          coder={coder}
+          showToast={showToast}
+          onNew={reset}
+          onBack={() => { setPhase("submit"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          onTimeline={() => router.push("/matrix-builder/builds")}
+          onContinue={() => { showToast("Batch 01 passed — saved to your builds."); router.push("/matrix-builder/builds"); }}
+        />
       )}
 
       {toast && <div className="mb-toast"><MatrixIcon size={17}>{icons.check}</MatrixIcon>{toast}</div>}

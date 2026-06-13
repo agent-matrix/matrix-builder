@@ -96,6 +96,21 @@ def test_delete_account_removes_login(client):
     assert client.post("/api/v1/auth/signup", json={"email": EMAIL, "password": PW}).status_code == 202
 
 
+def test_change_password(client):
+    client.post("/api/v1/auth/signup", json={"email": EMAIL, "password": PW})
+    act = client.post("/api/v1/auth/activate", json={"token": tok.make_token(EMAIL, tok.ACTIVATE)})
+    auth = {"authorization": f"Bearer {act.json()['access_token']}"}
+    # wrong current password is rejected
+    assert client.post("/api/v1/auth/password/change", headers=auth, json={"current_password": "nope-nope-nope", "new_password": "brand-new-pw-1"}).status_code == 401
+    # correct current password succeeds
+    assert client.post("/api/v1/auth/password/change", headers=auth, json={"current_password": PW, "new_password": "brand-new-pw-1"}).status_code == 200
+    # new works, old doesn't
+    assert client.post("/api/v1/auth/login", json={"email": EMAIL, "password": "brand-new-pw-1"}).status_code == 200
+    assert client.post("/api/v1/auth/login", json={"email": EMAIL, "password": PW}).status_code == 401
+    # unauthenticated change is rejected
+    assert client.post("/api/v1/auth/password/change", json={"current_password": PW, "new_password": "x"}).status_code == 401
+
+
 def test_google_creates_active_account(client, monkeypatch):
     monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client.apps.googleusercontent.com")
     get_settings.cache_clear()
