@@ -75,5 +75,7 @@ export function makeZip(files: BundleFile[]): Blob {
     ...u16(0), ...u16(0), ...u16(encoded.length), ...u16(encoded.length),
     ...u32(cdSize), ...u32(cdStart), ...u16(0),
   ]);
-  return new Blob([...parts, ...cd, end], { type: "application/zip" });
+  // Cast to BlobPart[]: Uint8Array is a valid BlobPart at runtime; the TS 5.7 typed-array
+  // generic (ArrayBufferLike vs ArrayBuffer) otherwise rejects it.
+  return new Blob([...parts, ...cd, end] as BlobPart[], { type: "application/zip" });
 }

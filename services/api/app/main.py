@@ -25,7 +25,13 @@ def create_app() -> FastAPI:
         metrics_registry.inc('http_requests_total'); response=await call_next(request); return response
     @app.on_event('startup')
     async def startup() -> None:
+        from app.runtime import get_run_worker
+        await get_run_worker().start()
         audit_service.record('service.startup', resource_type='service', resource_id=settings.app_name); logger.info('Matrix Builder API started')
+    @app.on_event('shutdown')
+    async def shutdown() -> None:
+        from app.runtime import get_run_worker
+        await get_run_worker().stop()
     @app.get('/health', tags=['health'])
     def root_health() -> dict[str, str]: return {'status':'ok','service':settings.app_name,'version':settings.app_version}
     @app.get('/metrics', include_in_schema=False)

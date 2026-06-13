@@ -8,6 +8,7 @@ on:
       - 'services/api/**'
       - 'tests/**'
       - 'scripts/**'
+      - 'requirements.txt'
       - 'pyproject.toml'
       - 'pytest.ini'
 
@@ -22,5 +23,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m pip install --upgrade pip pytest fastapi httpx pydantic uvicorn
-      - run: PYTHONPATH=services/api pytest services/api/tests tests/contract -q
+      - uses: astral-sh/setup-uv@v5
+      - name: Install PostgreSQL (RLS/DB tests)
+        run: sudo apt-get update && sudo apt-get install -y postgresql
+      - run: uv pip install --system -r requirements.txt
+      - run: PYTHONPATH=services/api:. python -m pytest services/api/tests -q
