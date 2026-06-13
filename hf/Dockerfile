@@ -1,45 +1,46 @@
-# Matrix Builder — standalone Hugging Face Space (Docker SDK).
-#
-# Self-contained: fetches the app from the matrix-builder repo at build time, so the Space
-# stays thin (just this Dockerfile + README.md). HF Spaces serves on port 7860.
-# Override the source with build args MATRIX_BUILDER_REPO / MATRIX_BUILDER_REF.
-FROM python:3.12-slim
+# Matrix Builder — full stack on one Hugging Face Space (Docker SDK, port 7860).
+# The Next.js UI is the public server on 7860; it proxies /api/builder/* to the FastAPI
+# backend running internally on 127.0.0.1:8000 (same-origin — mirrors the Vercel topology).
 
-ARG MATRIX_BUILDER_REPO=https://github.com/agent-matrix/matrix-builder.git
-ARG MATRIX_BUILDER_REF=main
+# ── stage 1: build the Next.js standalone UI ──────────────────────────────────────────────
+FROM node:20-slim AS web
+WORKDIR /web
+COPY web/package.json ./
+RUN npm install --no-audit --no-fund
+COPY web/ ./
+# NEXT_PUBLIC_* is inlined at build time; rewrites read the *_SPACE_URL envs.
+# NEXT_PUBLIC_GOOGLE_CLIENT_ID is public (safe to bake); set it to enable Sign in with Google.
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=""
+ENV NEXT_PUBLIC_API_BASE_URL=/api/builder \
+    MATRIX_BUILDER_SPACE_URL=http://127.0.0.1:8000 \
+    AGENT_GENERATOR_SPACE_URL=https://ruslanmv-agent-generator.hf.space \
+    OLLABRIDGE_SPACE_URL=https://ruslanmv-ollabridge.hf.space \
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+RUN npm run build && test -f .next/standalone/server.js
+# Standalone needs static assets + public/ copied alongside the server.
+RUN cp -r .next/static .next/standalone/.next/static \
+  && if [ -d public ]; then cp -r public .next/standalone/public; fi
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/services/api \
-    PIP_NO_CACHE_DIR=1 \
-    PORT=7860
-
+# ── stage 2: runtime (Node UI + Python API) ───────────────────────────────────────────────
+FROM node:20-slim AS runtime
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/services/api \
+    PIP_NO_CACHE_DIR=1 PORT=7860 PATH=/opt/venv/bin:$PATH
 WORKDIR /app
-
-# git to fetch the app; uv for fast installs.
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends git ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv \
   && rm -rf /var/lib/apt/lists/* \
-  && pip install --no-cache-dir uv
-
-# Shallow-clone only what we need, then drop the .git history to keep the image small.
-RUN git clone --depth 1 --branch "${MATRIX_BUILDER_REF}" "${MATRIX_BUILDER_REPO}" /tmp/src \
-  && cp /tmp/src/requirements.txt /app/requirements.txt \
-  && cp -r /tmp/src/services/api /app/services/api \
-  && cp -r /tmp/src/scripts /app/scripts \
-  && rm -rf /tmp/src
-
-RUN uv pip install --system -r /app/requirements.txt
-
-RUN useradd -m app \
+  && python3 -m venv /opt/venv
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+COPY services/api /app/services/api
+COPY scripts /app/scripts
+COPY --from=web /web/.next/standalone /app/web
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh \
+  && useradd -m app \
   && mkdir -p /app/.local/matrix-builder-storage /app/.local/audit \
   && chown -R app /app
 USER app
-
 EXPOSE 7860
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD python -c "import os,urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.environ.get(\"PORT\",\"7860\")}/health', timeout=3).read()"
-
-# DATABASE_URL (matrix_app) + MB_JWT_SECRET come from Space secrets. Migrations are run
-# separately by an operator (make migrate) against Aiven — this container does not self-migrate.
-CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PORT||7860)+'/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"
+CMD ["/app/start.sh"]

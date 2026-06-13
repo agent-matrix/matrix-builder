@@ -2,8 +2,10 @@ from __future__ import annotations
 from typing import Any
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.api.router import api_router
+from app.landing import landing_html
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.core.rate_limits import RateLimitMiddleware
@@ -32,6 +34,8 @@ def create_app() -> FastAPI:
     async def shutdown() -> None:
         from app.runtime import get_run_worker
         await get_run_worker().stop()
+    @app.get('/', include_in_schema=False)
+    def landing() -> HTMLResponse: return HTMLResponse(landing_html(settings.app_version))
     @app.get('/health', tags=['health'])
     def root_health() -> dict[str, str]: return {'status':'ok','service':settings.app_name,'version':settings.app_version}
     @app.get('/metrics', include_in_schema=False)

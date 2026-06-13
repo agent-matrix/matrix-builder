@@ -1,0 +1,110 @@
+name: hf-space
+
+# Deploy the full-stack Hugging Face Space at
+# https://huggingface.co/spaces/${HF_SPACE_OWNER}/${HF_SPACE_NAME}
+#
+# Single source: the Space is built from THIS repo's `apps/web` (frontend) and
+# `services/api` (backend). CI stages the deploy tree and pushes it to the Space's
+# git remote with a write-scoped HF_TOKEN; the Space then builds `hf/Dockerfile`
+# (Node UI + FastAPI on one container, port 7860).
+#
+# Required repository secret:
+#   HF_TOKEN         fine-grained HF token with "write" on the Space
+# Optional repository variables (defaults shown):
+#   HF_SPACE_OWNER   ruslanmv
+#   HF_SPACE_NAME    matrix-builder
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "apps/web/**"
+      - "services/api/**"
+      - "scripts/**"
+      - "requirements.txt"
+      - "hf/**"
+      - ".github/workflows/hf-space.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-space-matrix-builder
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HF_SPACE_OWNER: ${{ vars.HF_SPACE_OWNER || 'ruslanmv' }}
+      HF_SPACE_NAME: ${{ vars.HF_SPACE_NAME || 'matrix-builder' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage deploy tree (single frontend source = apps/web)
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/hf-space"
+          rm -rf "$STAGE"; mkdir -p "$STAGE/web" "$STAGE/services"
+          # Infra assets live in hf/.
+          cp hf/Dockerfile "$STAGE/Dockerfile"
+          cp hf/start.sh   "$STAGE/start.sh"
+          cp hf/README.md  "$STAGE/README.md"
+          cp requirements.txt "$STAGE/requirements.txt"
+          # Frontend (the one source) and backend, minus build/test artefacts.
+          cp -r apps/web/. "$STAGE/web/"
+          rm -rf "$STAGE/web/node_modules" "$STAGE/web/.next" "$STAGE/web/.turbo" \
+                 "$STAGE/web/out" "$STAGE/web/next-env.d.ts"
+          cp -r services/api "$STAGE/services/api"
+          cp -r scripts "$STAGE/scripts"
+          find "$STAGE" -type d \( -name '__pycache__' -o -name '.pytest_cache' \) -prune -exec rm -rf {} + || true
+          find "$STAGE" -name '*.pyc' -delete || true
+          rm -rf "$STAGE/services/api/tests" "$STAGE/services/api/.local"
+          cat > "$STAGE/.gitignore" <<'IGNORE'
+          __pycache__/
+          *.pyc
+          .pytest_cache/
+          .local/
+          web/node_modules/
+          web/.next/
+          IGNORE
+          echo "STAGE=$STAGE" >> "$GITHUB_ENV"
+
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error::HF_TOKEN secret is not set; cannot deploy."; exit 1
+          fi
+          git config --global user.name "matrix-builder-bot"
+          git config --global user.email "matrix-builder-bot@users.noreply.github.com"
+          SPACE_URL="https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE_OWNER}/${HF_SPACE_NAME}"
+          SDIR="$RUNNER_TEMP/space-repo"
+          git clone --depth 1 "$SPACE_URL" "$SDIR"
+          (
+            cd "$SDIR"
+            git ls-files -z | xargs -0 rm -f || true
+            find . -depth -type d -empty ! -path './.git*' -delete || true
+          )
+          cp -r "$STAGE/." "$SDIR/"
+          (
+            cd "$SDIR"
+            git add -A
+            if git diff --cached --quiet; then echo "No deploy diff; skipping."; exit 0; fi
+            git commit -m "deploy: matrix-builder@${GITHUB_SHA::12}
+
+            Source: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+            git push origin HEAD:main
+          )
+
+      - name: Summary
+        if: success()
+        run: |
+          {
+            echo "## Hugging Face Space deployed"
+            echo "- **Space:** https://huggingface.co/spaces/${HF_SPACE_OWNER}/${HF_SPACE_NAME}"
+            echo "- **Commit:** \`${GITHUB_SHA::12}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -16,14 +16,24 @@ import type { NextConfig } from "next";
  *
  * HF Spaces custom domains require a paid plan, so we proxy the free *.hf.space
  * hosts instead of pointing DNS at them directly.
+ *
+ * ONE frontend source (this app) runs in two places:
+ *   - Vercel: serves the UI; rewrites /api/builder/* to the HF Space's PUBLIC
+ *     /api/builder endpoint (the default below) — zero config needed.
+ *   - HF Space: the same build runs as `node server.js` next to FastAPI, with
+ *     MATRIX_BUILDER_SPACE_URL=http://127.0.0.1:8000 so the rewrite hits the
+ *     local backend directly.
  */
-const builderSpace = process.env.MATRIX_BUILDER_SPACE_URL ?? "https://ruslanmv-matrix-builder.hf.space";
+const builderSpace = process.env.MATRIX_BUILDER_SPACE_URL ?? "https://ruslanmv-matrix-builder.hf.space/api/builder";
 const agentGeneratorSpace = process.env.AGENT_GENERATOR_SPACE_URL ?? "https://ruslanmv-agent-generator.hf.space";
 const ollabridgeSpace = process.env.OLLABRIDGE_SPACE_URL ?? "https://ruslanmv-ollabridge.hf.space";
 
 const stripTrailingSlash = (url: string) => url.replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
+  // Standalone output lets the single HF Space container run the UI with `node server.js`
+  // alongside the FastAPI backend; ignored/harmless on Vercel.
+  output: "standalone",
   experimental: {},
   async rewrites() {
     return [

@@ -1,0 +1,75 @@
+name: hf-space-pr
+
+# Smoke-test the Hugging Face Space deploy tree on every PR that touches the relevant
+# paths. We build the Next.js UI (standalone), run the backend test suite, and verify the
+# deploy stage assembles cleanly. We do NOT push to HF.
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "services/api/**"
+      - "scripts/**"
+      - "requirements.txt"
+      - "hf/**"
+      - ".github/workflows/hf-space.yml"
+      - ".github/workflows/hf-space-pr.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-space-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: build · test · stage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Build the Next.js UI (standalone)
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_API_BASE_URL: /api/builder
+          MATRIX_BUILDER_SPACE_URL: http://127.0.0.1:8000
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+          test -f .next/standalone/server.js
+
+      - name: Install backend deps + run tests
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          cd services/api && python -m pytest -q -p no:warnings
+
+      - name: Verify deploy tree assembles
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/hf-space"
+          rm -rf "$STAGE"; mkdir -p "$STAGE/web" "$STAGE/services"
+          cp hf/Dockerfile "$STAGE/Dockerfile"
+          cp hf/start.sh   "$STAGE/start.sh"
+          cp hf/README.md  "$STAGE/README.md"
+          cp requirements.txt "$STAGE/requirements.txt"
+          cp -r apps/web/. "$STAGE/web/"
+          rm -rf "$STAGE/web/node_modules" "$STAGE/web/.next"
+          cp -r services/api "$STAGE/services/api"
+          cp -r scripts "$STAGE/scripts"
+          test -f "$STAGE/web/package.json"
+          test -f "$STAGE/web/next.config.ts"
+          test -f "$STAGE/services/api/app/main.py"
+          test -f "$STAGE/Dockerfile"
+          test -f "$STAGE/start.sh"
+          echo "  ✓ staged tree assembled at $STAGE"
