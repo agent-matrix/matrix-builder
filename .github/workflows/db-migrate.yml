@@ -1,0 +1,91 @@
+name: db-migrate
+
+# Create / update the production schema on Aiven PostgreSQL (ADR 0002).
+# Runs on a GitHub runner, which CAN reach Aiven on port 23188.
+#
+# Required GitHub repository SECRETS (Settings → Secrets and variables → Actions):
+#   MIGRATION_DATABASE_URL   avnadmin DSN, e.g.
+#     postgresql+psycopg://avnadmin:PW@pg-3113274d-matrix-builder.a.aivencloud.com:23188/defaultdb?sslmode=require
+#   MATRIX_APP_PASSWORD      password for the least-privilege matrix_app role —
+#                            MUST equal the password inside the app's DATABASE_URL (HF secret)
+#
+# Manual run: Actions → db-migrate → Run workflow. Also runs automatically when migrations change.
+
+on:
+  workflow_dispatch:
+    inputs:
+      setup_role:
+        description: "Create/grant matrix_app role and set its password"
+        type: boolean
+        default: true
+  push:
+    branches: [master, main]
+    paths:
+      - "services/api/migrations/**"
+      - "services/api/scripts/aiven_setup.sql"
+      - ".github/workflows/db-migrate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install deps + psql client
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Resolve admin DSN (MIGRATION_DATABASE_URL, else DATABASE_URL)
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          DSN="${MIGRATION_DATABASE_URL:-${DATABASE_URL:-}}"
+          [ -n "$DSN" ] || {
+            echo "::error::Set MIGRATION_DATABASE_URL (or DATABASE_URL) to the avnadmin DSN."; exit 1; }
+          echo "::add-mask::$DSN"
+          PSQL_URL="${DSN/+psycopg/}"   # libpq scheme for psql
+          echo "::add-mask::$PSQL_URL"
+          { echo "ADMIN_DSN=$DSN"; echo "PSQL_URL=$PSQL_URL"; } >> "$GITHUB_ENV"
+
+      - name: Apply migrations (alembic upgrade head)
+        env:
+          MIGRATION_DATABASE_URL: ${{ env.ADMIN_DSN }}
+        run: bash scripts/migrate.sh
+
+      - name: Create matrix_app role + grants (+ password)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.setup_role }}
+        env:
+          MATRIX_APP_PASSWORD: ${{ secrets.MATRIX_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f services/api/scripts/aiven_setup.sql
+          if [ -n "${MATRIX_APP_PASSWORD:-}" ]; then
+            # :'pw' safely quotes the value (no SQL injection via the password).
+            psql "$PSQL_URL" -v ON_ERROR_STOP=1 -v pw="$MATRIX_APP_PASSWORD" \
+              -c "ALTER ROLE matrix_app PASSWORD :'pw'"
+            echo "matrix_app password set."
+          else
+            echo "::warning::MATRIX_APP_PASSWORD not set — role created/granted but password unchanged."
+          fi
+
+      - name: Verify schema (production readiness)
+        run: |
+          set -euo pipefail
+          psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f services/api/scripts/db_verify.sql
+          n=$(psql "$PSQL_URL" -At -c "SELECT count(*) FROM pg_tables WHERE schemaname='public'")
+          echo "public tables: $n"
+          [ "$n" -ge 1 ] || { echo "::error::no tables created"; exit 1; }

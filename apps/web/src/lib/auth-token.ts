@@ -19,16 +19,24 @@ export function getUser(): AuthUser | null {
   }
 }
 
+export const AUTH_EVENT = "mb-auth-changed";
+
+function broadcast(): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(AUTH_EVENT));
+}
+
 export function setSession(token: string, user: AuthUser): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STORAGE_KEY, token);
   window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+  broadcast();
 }
 
 export function clearSession(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEY);
   window.localStorage.removeItem(USER_KEY);
+  broadcast();
 }
 
 export function getAuthToken(): string | null {
