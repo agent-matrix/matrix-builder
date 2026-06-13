@@ -202,6 +202,20 @@ def google_login(payload: GoogleAuthRequest) -> SessionResponse:
                            user=AuthUser(email=email, name=claims.get("name"), picture=claims.get("picture")))
 
 
+# ---- update account profile ----------------------------------------------------------------
+class UpdateAccountRequest(BaseModel):
+    name: Optional[str] = None
+
+
+@router.patch('/auth/account', response_model=AuthUser)
+def update_account(payload: UpdateAccountRequest, claims: dict = Depends(current_claims)) -> AuthUser:
+    email = claims.get("email")
+    name = (payload.name or "").strip() or None
+    if email:
+        get_account_store().set_name(str(email), name)
+    return AuthUser(email=email, name=name)
+
+
 # ---- delete account (GDPR: remove account + all owned data) --------------------------------
 @router.delete('/auth/account')
 def delete_account(claims: dict = Depends(current_claims)) -> dict[str, object]:

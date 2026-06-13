@@ -44,6 +44,7 @@ class AccountStore:
     def create(self, email: str, password_hash: str | None, *, name: str | None, is_active: bool, provider: str) -> Account: ...
     def set_active(self, email: str, active: bool = True) -> None: ...
     def set_password(self, email: str, password_hash: str) -> None: ...
+    def set_name(self, email: str, name: str | None) -> None: ...
     def delete_by_email(self, email: str) -> None: ...
 
 
@@ -74,6 +75,12 @@ class InMemoryAccountStore(AccountStore):
             if acc:
                 acc.password_hash = password_hash
                 acc.is_active = True  # resetting a password proves inbox ownership
+
+    def set_name(self, email, name):
+        with self._lock:
+            acc = self._rows.get(_norm(email))
+            if acc:
+                acc.name = name
 
     def delete_by_email(self, email):
         with self._lock:
@@ -113,6 +120,10 @@ class DbAccountStore(AccountStore):
         with db.session_scope() as s:
             s.execute(text("UPDATE auth_accounts SET password_hash = :p, is_active = true WHERE email = :e"),
                       {"p": password_hash, "e": _norm(email)})
+
+    def set_name(self, email, name):
+        with db.session_scope() as s:
+            s.execute(text("UPDATE auth_accounts SET name = :n WHERE email = :e"), {"n": name, "e": _norm(email)})
 
     def delete_by_email(self, email):
         with db.session_scope() as s:
