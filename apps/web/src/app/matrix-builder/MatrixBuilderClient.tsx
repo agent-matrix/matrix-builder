@@ -619,7 +619,7 @@ function LandingHero({ idea, setIdea, generate }: { idea: string; setIdea: (valu
           <footer className="l-foot">
             <div className="l-foot-in">
               <span>© 2026 Matrix Builder · ruslanmv.com</span>
-              <span className="links"><a href="#how">API</a><a href="#how">Docs</a><a href="#trust">Trust</a><a href="https://www.matrixhub.io" target="_blank" rel="noreferrer">MatrixHub</a></span>
+              <span className="links"><a href="#how">API</a><a href="https://agent-matrix.github.io/matrix-builder/" target="_blank" rel="noreferrer">Docs</a><a href="#trust">Trust</a><a href="https://www.matrixhub.io" target="_blank" rel="noreferrer">MatrixHub</a></span>
             </div>
           </footer>
         </div>

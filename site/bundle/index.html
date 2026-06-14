@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#02170f" />
+  <meta name="color-scheme" content="dark" />
+  <title>Anatomy of a Matrix Bundle — Matrix Builder</title>
+  <meta name="description" content="What's inside a Matrix Bundle: MATRIX_BLUEPRINT.yaml, MATRIX_STANDARDS.lock, scoped tasks, allowed-change boundaries, per-coder prompts, and signed provenance (SBOM + attestation). The controlled deliverable behind every AI build." />
+  <meta name="keywords" content="Matrix Bundle, MATRIX_BLUEPRINT.yaml, MATRIX_STANDARDS.lock, controlled AI code generation, AI coder contract, SBOM, attestation, software blueprint" />
+  <link rel="canonical" href="https://agent-matrix.github.io/matrix-builder/bundle/" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --bg:#02170f;--surface:rgba(8,39,28,.5);--surface-2:rgba(2,34,23,.42);
+      --line:rgba(123,255,184,.13);--line-strong:rgba(123,255,184,.26);
+      --tx:#f7fff9;--muted:rgba(236,255,244,.72);--soft:rgba(236,255,244,.5);
+      --grn:#22c878;--grn-bright:#53f39d;--shadow:0 28px 90px rgba(0,0,0,.4);
+      --serif:'Newsreader',Georgia,serif;--sans:'Hanken Grotesk',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;--max:980px;
+    }
+    *{box-sizing:border-box}html{scroll-behavior:smooth}
+    body{margin:0;color:var(--tx);font-family:var(--sans);font-size:16px;line-height:1.5;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;
+      background:radial-gradient(circle at 82% 4%,rgba(34,200,120,.15),transparent 30%),radial-gradient(circle at 10% 98%,rgba(83,243,157,.07),transparent 34%),linear-gradient(180deg,#03190f,#02170f 46%,#01100b)}
+    body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(255,255,255,.013) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.013) 1px,transparent 1px);background-size:48px 48px;mask-image:linear-gradient(to bottom,#000,transparent 82%)}
+    a{color:inherit;text-decoration:none}
+    .wrap{width:min(var(--max),calc(100% - 40px));margin:0 auto;position:relative;z-index:1}
+    .rv{opacity:0;transform:translateY(18px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+    .rv.in{opacity:1;transform:none}
+    @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}}
+    .nav{position:sticky;top:0;z-index:40;border-bottom:1px solid rgba(123,255,184,.08);background:rgba(2,22,14,.6);backdrop-filter:blur(22px) saturate(140%)}
+    .nav-in{height:64px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+    .brand{display:inline-flex;align-items:center;gap:12px}
+    .mark{width:26px;height:26px;display:grid;place-items:center;border:1.5px solid rgba(34,200,120,.8);transform:rotate(45deg);box-shadow:0 0 24px rgba(34,200,120,.25)}
+    .mark::after{content:"";width:8px;height:8px;border:2px solid var(--grn-bright);display:block}
+    .brand b{font-family:var(--serif);font-size:19px;font-weight:600}
+    .nav-links{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:14.5px;font-weight:600}
+    .nav-links a{padding:9px 14px;border-radius:999px;transition:.18s}
+    .nav-links a:hover{color:var(--tx);background:rgba(255,255,255,.05)}
+    .nav-links a.cta{border:1px solid rgba(34,200,120,.45);background:rgba(34,200,120,.1);color:var(--grn-bright)}
+    .head{padding:clamp(56px,11vh,108px) 0 8px;text-align:center}
+    .eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:var(--grn-bright);border:1px solid rgba(34,200,120,.32);background:rgba(34,200,120,.07);border-radius:999px;padding:8px 15px}
+    h1{font-family:var(--serif);font-weight:500;letter-spacing:-.03em;line-height:1.02;font-size:clamp(38px,7vw,72px);margin:22px auto 0;max-width:16ch}
+    h1 em{font-style:italic;color:var(--grn-bright)}
+    .lede{margin:22px auto 0;max-width:60ch;color:var(--muted);font-size:clamp(16px,2vw,19px);line-height:1.6}
+    .manifest{margin:clamp(40px,7vh,72px) 0;border:1px solid var(--line-strong);border-radius:22px;overflow:hidden;background:rgba(1,14,9,.72);box-shadow:var(--shadow)}
+    .m-head{padding:16px 22px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12.5px;color:var(--soft);display:flex;align-items:center;gap:8px}
+    .m-head .dot{width:9px;height:9px;border-radius:50%;background:var(--grn-bright);box-shadow:0 0 10px var(--grn-bright)}
+    .grp{padding:14px 0}.grp+.grp{border-top:1px solid var(--line)}
+    .grp-t{padding:8px 22px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--soft)}
+    .file{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;padding:13px 22px;transition:background .15s}
+    .file:hover{background:rgba(34,200,120,.05)}
+    .file .fic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--grn-bright);border:1px solid rgba(34,200,120,.25);background:rgba(34,200,120,.07);flex:none}
+    .file .nm{font-family:var(--mono);font-size:14px;color:var(--tx);font-weight:600;word-break:break-word}
+    .file .ds{color:var(--muted);font-size:14px;line-height:1.5;margin-top:5px}
+    .file .lock{font-size:11px;font-weight:700;color:var(--grn-bright);font-family:var(--mono)}
+    .note{display:flex;gap:13px;align-items:flex-start;border:1px solid var(--line);border-radius:18px;padding:22px 24px;background:var(--surface);color:var(--muted);font-size:15px;line-height:1.6}
+    .note svg{flex:none;color:var(--grn-bright);margin-top:2px}
+    .note b{color:var(--tx)}
+    .cta-row{display:flex;flex-wrap:wrap;gap:13px;justify-content:center;margin:clamp(40px,7vh,72px) 0 0}
+    .btn{display:inline-flex;align-items:center;gap:10px;min-height:52px;padding:0 26px;border-radius:14px;font-weight:700;font-size:15px;transition:.2s;cursor:pointer;border:1px solid transparent}
+    .btn.primary{color:#04140c;background:linear-gradient(120deg,var(--grn-bright),var(--grn));box-shadow:0 18px 44px -14px rgba(34,200,120,.7)}
+    .btn.ghost{color:var(--tx);border-color:var(--line-strong);background:rgba(255,255,255,.04)}
+    .btn:hover{transform:translateY(-2px);filter:brightness(1.05)}
+    footer{border-top:1px solid rgba(123,255,184,.08);padding:34px 0;margin-top:clamp(48px,8vh,90px);color:var(--soft);font-size:13.5px;text-align:center}
+    footer a:hover{color:var(--grn-bright)}
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="../"><span class="mark"></span><b>Matrix&nbsp;Builder</b></a>
+      <nav class="nav-links">
+        <a href="../">← Home</a>
+        <a href="../use/">Use</a>
+        <a href="https://github.com/agent-matrix/matrix-builder" target="_blank" rel="noopener">GitHub</a>
+        <a class="cta" href="https://build.matrixhub.io" target="_blank" rel="noopener">Open app</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="head">
+      <div class="wrap">
+        <span class="eyebrow rv">The deliverable</span>
+        <h1 class="rv">Anatomy of a <em>Matrix&nbsp;Bundle</em>.</h1>
+        <p class="lede rv">Every build produces one controlled, signed bundle — not a pile of guessed code. It pins the architecture, the standards, the tasks, and the boundaries your AI coder must stay inside, then proves what it produced.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="manifest rv">
+          <div class="m-head"><span class="dot"></span>your-project / matrix-bundle</div>
+
+          <div class="grp">
+            <div class="grp-t">The contract — immutable</div>
+            <div class="file"><span class="fic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg></span><div><div class="nm">MATRIX_BLUEPRINT.yaml <span class="lock">· locked</span></div><div class="ds">The architecture contract — stack, services, routes, pages, and tasks. The single source of truth the AI coder may not change.</div></div></div>
+            <div class="file"><span class="fic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.5l7 3v5.5c0 4.3-2.9 7.4-7 9-4.1-1.6-7-4.7-7-9V5.5z"/><path d="M9 12l2 2 4-4.2"/></svg></span><div><div class="nm">MATRIX_STANDARDS.lock <span class="lock">· signed</span></div><div class="ds">The exact standards pinned to this build — rule ids and digests from the chosen quality profile (NIST&nbsp;SSDF, OWASP&nbsp;ASVS &amp; LLM&nbsp;Top&nbsp;10, SLSA).</div></div></div>
+            <div class="file"><span class="fic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h8l4 4v14H6z"/><path d="M9 12l6 0M9 16l4 0"/></svg></span><div><div class="nm">MATRIX_ALLOWED_CHANGES.md</div><div class="ds">Exactly which files and folders a batch may touch. Anything outside the allowlist is rejected on validation.</div></div></div>
+          </div>
+
+          <div class="grp">
+            <div class="grp-t">The work</div>
+            <div class="file"><span class="fic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.3l2.4 2.4 4.6-5"/></svg></span><div><div class="nm">MATRIX_TASKS.md</div><div class="ds">The scoped task list — each task names its allowed files, so the build advances one safe batch at a time.</div></div></div>
+            <div class="file"><span class="fic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.3l2.4 2.4 4.6-5"/></svg></span><div><div class="nm">MATRIX_ACCEPTANCE_CRITERIA.md</div><div class="ds">When each task is done — the commands (tests, lint, build) that must pass before a change becomes a commit.</div></div></div>
+            <div class="file"><span class="fic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8.5 7.5L4 12l4.5 4.5"/><path d="M15.5 7.5L20 12l-4.5 4.5"/></svg></span><div><div class="nm">coder-prompts/ <span class="lock">· per coder</span></div><div class="ds">Ready, contract-bound prompts for Claude&nbsp;Code, Codex, Cursor, GitPilot, IBM&nbsp;Bob, and more — plus tool-native helpers like CLAUDE.md and AGENTS.md.</div></div></div>
+          </div>
+
+          <div class="grp">
+            <div class="grp-t">Docs &amp; provenance</div>
+            <div class="file"><span class="fic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg></span><div><div class="nm">docs/architecture.md · docs/security.md</div><div class="ds">Human-readable architecture and security intent, generated from the blueprint and the active standards.</div></div></div>
+            <div class="file"><span class="fic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg></span><div><div class="nm">manifest.json · sbom.cdx.json · attestation.json</div><div class="ds">The signed proof — file digests, a CycloneDX SBOM, and verifiable provenance (Cosign / GitHub attestation). Provenance you can verify, not trust.</div></div></div>
+          </div>
+        </div>
+
+        <div class="note rv">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.5l7 3v5.5c0 4.3-2.9 7.4-7 9-4.1-1.6-7-4.7-7-9V5.5z"/><path d="M9 12l2 2 4-4.2"/></svg>
+          <span>Validation is <b>fail-closed</b>. A change inside the allowlist that meets the criteria becomes an immutable <b>Matrix Commit</b>; a forbidden edit is rejected with a scoped <b>repair prompt</b> — under the public <a href="https://agent-matrix.github.io/matrix-definitions/definitions/" target="_blank" rel="noopener" style="color:var(--grn-bright);font-weight:600">Ruslan Magana Definitions</a>.</span>
+        </div>
+
+        <div class="cta-row">
+          <a class="btn primary" href="https://build.matrixhub.io" target="_blank" rel="noopener">Build your first bundle</a>
+          <a class="btn ghost" href="../">← Back to overview</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">© 2026 Matrix Builder · Created by <a href="https://ruslanmv.com" target="_blank" rel="noopener" style="color:var(--grn-bright);font-weight:600">Ruslan Magana Vsevolodovna</a> · <a href="../">Home</a> · <a href="https://github.com/agent-matrix/matrix-builder" target="_blank" rel="noopener">GitHub</a></div>
+  </footer>
+
+  <script>
+    (function () {
+      var els = document.querySelectorAll('.rv');
+      if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) { els.forEach(function (e) { e.classList.add('in'); }); return; }
+      var io = new IntersectionObserver(function (en) { en.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+      els.forEach(function (e) { io.observe(e); });
+    })();
+  </script>
+</body>
+</html>
