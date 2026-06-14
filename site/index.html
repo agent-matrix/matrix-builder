@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#02170f" />
+  <meta name="color-scheme" content="dark" />
+  <title>Matrix Builder — Git for AI. Give AI coders a contract, not a prompt.</title>
+  <meta name="description" content="Matrix Builder is version control for AI-built software — controlled AI code generation for an AI development workflow. mb is the Git (local, offline, deterministic); Matrix Builder is the GitHub (host, validate, and publish controlled AI builds). Works with Claude Code, Codex, Cursor, and GitPilot. Created by Ruslan Magana Vsevolodovna." />
+  <meta name="keywords" content="Git for AI, controlled AI code generation, AI coding agents, AI development workflow, AI coder compliance, software blueprint, standards lock, validation, Claude Code, Codex, Cursor, GitPilot, Matrix Builder, agent-generator" />
+  <link rel="canonical" href="https://build.matrixhub.io/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Matrix Builder — Git for AI" />
+  <meta property="og:description" content="Give AI coders a contract, not a prompt. Versioned prompts, immutable commits, validation — for every AI coder. Created by Ruslan Magana Vsevolodovna." />
+  <meta property="og:url" content="https://build.matrixhub.io/" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="author" content="Ruslan Magana Vsevolodovna" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Matrix Builder",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Web, macOS, Linux, Windows",
+    "description": "Git for AI — version control and a contract layer for AI-built software.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "creator": {
+      "@type": "Person",
+      "name": "Ruslan Magana Vsevolodovna",
+      "url": "https://ruslanmv.com",
+      "sameAs": ["https://github.com/ruslanmv", "https://www.linkedin.com/in/ruslanmv"]
+    }
+  }
+  </script>
+  <style>
+    :root{
+      --bg:#02170f; --surface:rgba(8,39,28,.5); --surface-2:rgba(2,34,23,.42);
+      --line:rgba(123,255,184,.13); --line-strong:rgba(123,255,184,.26);
+      --tx:#f7fff9; --muted:rgba(236,255,244,.72); --soft:rgba(236,255,244,.5);
+      --grn:#22c878; --grn-bright:#53f39d; --grn-deep:#128a52;
+      --shadow:0 28px 90px rgba(0,0,0,.4);
+      --serif:'Newsreader',Georgia,serif;
+      --sans:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+      --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+      --max:1140px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+    body{
+      margin:0;color:var(--tx);font-family:var(--sans);font-size:16px;line-height:1.5;
+      min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;
+      background:
+        radial-gradient(circle at 82% 4%,rgba(34,200,120,.16),transparent 30%),
+        radial-gradient(circle at 10% 98%,rgba(83,243,157,.08),transparent 34%),
+        linear-gradient(180deg,#03190f 0%,#02170f 46%,#01100b 100%);
+    }
+    body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+      background-image:linear-gradient(rgba(255,255,255,.013) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.013) 1px,transparent 1px);
+      background-size:48px 48px;mask-image:linear-gradient(to bottom,#000 0%,transparent 80%)}
+    a{color:inherit;text-decoration:none}
+    .wrap{width:min(var(--max),calc(100% - 40px));margin:0 auto;position:relative;z-index:1}
+
+    /* reveal */
+    .rv{opacity:0;transform:translateY(20px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
+    .rv.in{opacity:1;transform:none}
+    @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}}
+
+    /* nav */
+    .nav{position:sticky;top:0;z-index:40;border-bottom:1px solid rgba(123,255,184,.08);
+      background:rgba(2,22,14,.6);backdrop-filter:blur(22px) saturate(140%)}
+    .nav-in{height:64px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+    .brand{display:inline-flex;align-items:center;gap:12px}
+    .mark{width:26px;height:26px;display:grid;place-items:center;border:1.5px solid rgba(34,200,120,.8);transform:rotate(45deg);box-shadow:0 0 24px rgba(34,200,120,.25);flex:none}
+    .mark::after{content:"";width:8px;height:8px;border:2px solid var(--grn-bright);display:block}
+    .brand b{font-family:var(--serif);font-size:19px;font-weight:600;letter-spacing:-.01em}
+    .nav-links{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:14.5px;font-weight:600}
+    .nav-links a{padding:9px 14px;border-radius:999px;transition:.18s}
+    .nav-links a:hover{color:var(--tx);background:rgba(255,255,255,.05)}
+    .nav-links a.cta{border:1px solid rgba(34,200,120,.45);background:rgba(34,200,120,.1);color:var(--grn-bright)}
+    .nav-links a.cta:hover{background:rgba(34,200,120,.18)}
+    @media(max-width:680px){.nav-hide{display:none}}
+
+    /* hero */
+    .hero{padding:clamp(70px,13vh,150px) 0 clamp(40px,7vh,90px);text-align:center}
+    .eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11px;font-weight:600;
+      letter-spacing:.26em;text-transform:uppercase;color:var(--grn-bright);
+      border:1px solid rgba(34,200,120,.32);background:rgba(34,200,120,.07);border-radius:999px;padding:8px 16px}
+    .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--grn-bright);box-shadow:0 0 12px var(--grn-bright)}
+    h1{font-family:var(--serif);font-weight:500;letter-spacing:-.035em;line-height:.98;
+      font-size:clamp(50px,10vw,118px);margin:26px auto 0;max-width:14ch}
+    h1 em{font-style:italic;color:var(--grn-bright)}
+    .lede{margin:26px auto 0;max-width:60ch;color:var(--muted);font-size:clamp(17px,2.3vw,22px);line-height:1.55}
+    .lede b{color:var(--tx);font-weight:600}
+    .cta-row{display:flex;flex-wrap:wrap;gap:13px;justify-content:center;margin-top:38px}
+    .btn{display:inline-flex;align-items:center;gap:10px;min-height:54px;padding:0 28px;border-radius:14px;font-weight:700;font-size:15.5px;transition:transform .2s,box-shadow .2s,filter .2s;border:1px solid transparent;cursor:pointer}
+    .btn.primary{color:#04140c;background:linear-gradient(120deg,var(--grn-bright),var(--grn));box-shadow:0 18px 44px -14px rgba(34,200,120,.7)}
+    .btn.ghost{color:var(--tx);border-color:var(--line-strong);background:rgba(255,255,255,.04);font-family:var(--mono);font-weight:500;font-size:14px}
+    .btn:hover{transform:translateY(-2px);filter:brightness(1.05)}
+    .hero-note{margin-top:20px;color:var(--soft);font-size:13px;font-family:var(--mono)}
+
+    /* section scaffolding */
+    section{padding:clamp(60px,11vh,120px) 0}
+    .kicker{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:var(--grn-bright)}
+    h2{font-family:var(--serif);font-weight:500;letter-spacing:-.03em;line-height:1.04;font-size:clamp(34px,5.2vw,60px);margin:16px 0 0;max-width:18ch}
+    h2 em{font-style:italic;color:var(--grn-bright)}
+    .sub{margin:20px 0 0;color:var(--muted);font-size:clamp(16px,2vw,19px);line-height:1.6;max-width:56ch}
+    .center{text-align:center;margin-inline:auto}
+    .center .sub{margin-inline:auto}
+
+    /* the analogy — two big cards */
+    .twins{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:48px}
+    @media(max-width:820px){.twins{grid-template-columns:1fr}}
+    .twin{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:26px;padding:38px 34px;
+      background:radial-gradient(120% 130% at 12% 0%,rgba(34,200,120,.1),transparent 46%),var(--surface);box-shadow:var(--shadow)}
+    .twin .tag{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--grn-bright);
+      border:1px solid rgba(34,200,120,.3);border-radius:999px;padding:6px 13px}
+    .twin h3{font-family:var(--serif);font-weight:500;font-size:34px;letter-spacing:-.02em;margin:20px 0 0}
+    .twin h3 span{color:var(--soft);font-size:18px;font-family:var(--sans);font-weight:600;display:block;margin-top:6px}
+    .twin p{color:var(--muted);font-size:16px;line-height:1.62;margin:16px 0 0}
+    .twin ul{list-style:none;margin:20px 0 0;padding:0;display:grid;gap:11px}
+    .twin li{display:flex;gap:11px;align-items:flex-start;color:var(--tx);font-size:15px}
+    .twin li svg{flex:none;margin-top:2px;color:var(--grn-bright)}
+    .arrow-mid{display:grid;place-items:center;color:var(--soft);font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;margin:6px 0}
+
+    /* steps */
+    .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:48px;counter-reset:s}
+    @media(max-width:900px){.steps{grid-template-columns:1fr 1fr}}
+    @media(max-width:540px){.steps{grid-template-columns:1fr}}
+    .step{border:1px solid var(--line);border-radius:20px;padding:26px 22px;background:var(--surface-2)}
+    .step .n{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--grn-bright)}
+    .step h4{font-family:var(--serif);font-weight:600;font-size:21px;margin:12px 0 0;letter-spacing:-.01em}
+    .step p{color:var(--muted);font-size:14.5px;line-height:1.55;margin:9px 0 0}
+
+    /* terminal */
+    .term{margin-top:44px;border:1px solid var(--line-strong);border-radius:20px;overflow:hidden;background:rgba(1,14,9,.85);box-shadow:var(--shadow)}
+    .term-bar{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.02)}
+    .term-bar i{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.16);display:block}
+    .term-bar i:first-child{background:#ff5f57}.term-bar i:nth-child(2){background:#febc2e}.term-bar i:nth-child(3){background:#28c840}
+    .term-bar span{margin-left:8px;font-family:var(--mono);font-size:12px;color:var(--soft)}
+    .term pre{margin:0;padding:24px clamp(18px,3vw,30px);font-family:var(--mono);font-size:clamp(12.5px,1.5vw,14.5px);line-height:1.9;overflow-x:auto;color:#cfe6da}
+    .term .c{color:#6f9a86}.term .p{color:var(--grn-bright);font-weight:600}.term .o{color:var(--soft)}.term .ok{color:var(--grn-bright)}.term .no{color:#ff8c8c}
+
+    /* pillars */
+    .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:48px}
+    @media(max-width:820px){.pillars{grid-template-columns:1fr}}
+    .pillar{border:1px solid var(--line);border-radius:20px;padding:30px 26px;background:var(--surface-2)}
+    .pillar .ic{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;color:var(--grn-bright);
+      border:1px solid rgba(34,200,120,.3);background:rgba(34,200,120,.08)}
+    .pillar h4{font-family:var(--serif);font-weight:600;font-size:23px;margin:18px 0 0;letter-spacing:-.01em}
+    .pillar p{color:var(--muted);font-size:15px;line-height:1.6;margin:10px 0 0}
+
+    /* standard band */
+    .band{border:1px solid var(--line);border-radius:28px;padding:clamp(34px,5vw,56px);text-align:center;
+      background:radial-gradient(120% 140% at 50% 0%,rgba(34,200,120,.12),transparent 50%),var(--surface);box-shadow:var(--shadow)}
+    .band .seal{width:60px;height:60px;margin:0 auto 6px;display:grid;place-items:center;color:#04140c;border-radius:50%;
+      background:linear-gradient(180deg,var(--grn-bright),var(--grn));box-shadow:0 0 40px -8px rgba(34,200,120,.8)}
+
+    /* creator */
+    .creator{display:grid;grid-template-columns:auto 1fr;gap:30px;align-items:center;
+      border:1px solid var(--line);border-radius:26px;padding:clamp(28px,4vw,44px);background:var(--surface);box-shadow:var(--shadow)}
+    @media(max-width:680px){.creator{grid-template-columns:1fr;text-align:center}}
+    .avatar{width:108px;height:108px;border-radius:24px;display:grid;place-items:center;color:#04140c;font-family:var(--serif);font-weight:600;font-size:42px;
+      background:linear-gradient(135deg,var(--grn-bright),var(--grn));box-shadow:0 18px 50px -12px rgba(34,200,120,.5);justify-self:center}
+    .creator .role{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--grn-bright)}
+    .creator h3{font-family:var(--serif);font-weight:500;font-size:clamp(28px,4vw,40px);letter-spacing:-.02em;margin:10px 0 0}
+    .creator p{color:var(--muted);font-size:16px;line-height:1.62;margin:14px 0 0;max-width:60ch}
+    .creator .links{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+    @media(max-width:680px){.creator .links{justify-content:center}}
+    .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:999px;padding:9px 16px;font-size:14px;font-weight:600;background:rgba(255,255,255,.035);transition:.18s}
+    .chip:hover{color:var(--grn-bright);border-color:rgba(34,200,120,.5)}
+
+    /* repos */
+    .repos{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+    @media(max-width:820px){.repos{grid-template-columns:1fr}}
+    .repo{border:1px solid var(--line);border-radius:18px;padding:24px;background:var(--surface-2);transition:.2s}
+    .repo:hover{border-color:rgba(34,200,120,.4);transform:translateY(-2px)}
+    .repo .nm{font-family:var(--mono);font-size:14px;color:var(--grn-bright);font-weight:600}
+    .repo .ds{color:var(--muted);font-size:14px;line-height:1.5;margin-top:8px}
+
+    /* final cta */
+    .final{text-align:center}
+    .final h2{margin-inline:auto}
+
+    footer{border-top:1px solid rgba(123,255,184,.08);padding:36px 0;margin-top:40px}
+    .foot-in{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;color:var(--soft);font-size:13.5px}
+    .foot-in a:hover{color:var(--grn-bright)}
+    /* animated hero canvas */
+    .hero{position:relative;overflow:hidden}
+    .hero .wrap{position:relative;z-index:1}
+    #hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;opacity:.62;pointer-events:none;
+      mask-image:radial-gradient(125% 92% at 50% 32%,#000 36%,transparent 80%);-webkit-mask-image:radial-gradient(125% 92% at 50% 32%,#000 36%,transparent 80%)}
+
+    /* AI-coder strip */
+    .coders{padding:8px 0 clamp(40px,7vh,72px)}
+    .coders .lab{text-align:center;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--soft)}
+    .coders .row{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:20px}
+    .coder{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:11px 18px;font-weight:600;font-size:14.5px;color:var(--muted);transition:.18s}
+    .coder:hover{color:var(--tx);border-color:rgba(34,200,120,.4)}
+    .coder svg{color:var(--grn-bright);flex:none}
+
+    /* product shot — framed browser */
+    .shot{margin-top:46px;border:1px solid var(--line-strong);border-radius:18px;overflow:hidden;box-shadow:var(--shadow);background:rgba(1,14,9,.6)}
+    .shot-bar{display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.02)}
+    .shot-bar i{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.16);display:block}
+    .shot-bar i:first-child{background:#ff5f57}.shot-bar i:nth-child(2){background:#febc2e}.shot-bar i:nth-child(3){background:#28c840}
+    .shot-bar span{margin-left:8px;font-family:var(--mono);font-size:12px;color:var(--soft)}
+    .shot img{display:block;width:100%;height:auto}
+
+    /* "what's inside" band */
+    .inside{border:1px solid var(--line);border-radius:22px;padding:clamp(26px,4vw,38px);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:22px;
+      background:radial-gradient(120% 140% at 8% 0%,rgba(34,200,120,.1),transparent 46%),var(--surface)}
+    .inside h3{font-family:var(--serif);font-weight:500;font-size:clamp(24px,3.4vw,34px);letter-spacing:-.02em;margin:0;max-width:22ch}
+    .inside p{color:var(--muted);font-size:15px;line-height:1.55;margin:10px 0 0;max-width:50ch}
+    .inside .go{display:inline-flex;align-items:center;gap:9px;border:1px solid rgba(34,200,120,.45);background:rgba(34,200,120,.1);color:var(--grn-bright);
+      border-radius:13px;padding:14px 22px;font-weight:700;font-size:15px;white-space:nowrap;transition:.18s}
+    .inside .go:hover{background:rgba(34,200,120,.18);transform:translateY(-2px)}
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="#top"><span class="mark"></span><b>Matrix&nbsp;Builder</b></a>
+      <nav class="nav-links">
+        <a class="nav-hide" href="#how">How it works</a>
+        <a class="nav-hide" href="use/">Use</a>
+        <a class="nav-hide" href="bundle/">Anatomy</a>
+        <a class="nav-hide" href="https://github.com/agent-matrix/matrix-builder" target="_blank" rel="noopener">GitHub</a>
+        <a class="cta" href="https://build.matrixhub.io" target="_blank" rel="noopener">Open app</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero">
+      <canvas id="hero-canvas" aria-hidden="true"></canvas>
+      <div class="wrap">
+        <span class="eyebrow rv"><span class="dot"></span>The version control for AI builds</span>
+        <h1 class="rv">Git for <em>AI</em>.</h1>
+        <p class="lede rv">AI writes code in seconds — then forgets the rules. Matrix Builder gives every AI coder a <b>contract, not a prompt</b>: locked standards, scoped tasks, validation, and an immutable history of every build.</p>
+        <div class="cta-row rv">
+          <a class="btn primary" href="https://build.matrixhub.io" target="_blank" rel="noopener">Start building — it's free</a>
+          <span class="btn ghost">pip install agent-generator</span>
+        </div>
+        <div class="hero-note rv">Works with Claude&nbsp;Code · Cursor · Codex · GitPilot · and any AI coder.</div>
+      </div>
+    </section>
+
+    <!-- AI-CODER STRIP -->
+    <section class="coders">
+      <div class="wrap">
+        <div class="lab rv">Works with the AI coders you already use</div>
+        <div class="row rv">
+          <span class="coder"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7l8 4.6v9.4l-8 4.6-8-4.6V7.3z"/><path d="M4 7.3l8 4.7 8-4.7M12 12v8.6"/></svg>Claude&nbsp;Code</span>
+          <span class="coder"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 7.5L4 12l4.5 4.5"/><path d="M15.5 7.5L20 12l-4.5 4.5"/></svg>Codex</span>
+          <span class="coder"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Cursor</span>
+          <span class="coder"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M16 10.5c-3 1.5-7 .5-9 4"/></svg>GitPilot</span>
+          <span class="coder"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l8.5 4.7L12 12.9 3.5 8.2 12 3.5z"/><path d="M3.5 13l8.5 4.7L20.5 13"/></svg>IBM&nbsp;Bob</span>
+          <span class="coder"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7.5V3.5M15 7.5V3.5"/><path d="M7 7.5h10v3.5a5 5 0 01-10 0V7.5z"/><path d="M12 16v4.5"/></svg>Any AI coder</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ANALOGY: mb = git, matrix-builder = github -->
+    <section id="analogy">
+      <div class="wrap center">
+        <span class="kicker rv">The simplest way to understand it</span>
+        <h2 class="rv center">Git changed how we write code.<br /><em>Matrix</em> changes how AI builds it.</h2>
+      </div>
+      <div class="wrap">
+        <div class="twins">
+          <div class="twin rv">
+            <span class="tag">$ mb &nbsp;— the Git</span>
+            <h3>mb<span>Local. Offline. Yours.</span></h3>
+            <p>A command-line tool that turns an idea into a controlled build and records every step — like <b>git</b>, but for what AI generates. No server, no account, fully deterministic.</p>
+            <ul>
+              <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 7"/></svg>Versioned prompts &amp; immutable commits</li>
+              <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 7"/></svg>Forbidden edits rejected — the contract holds</li>
+              <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 7"/></svg>Replays identically on any machine</li>
+            </ul>
+          </div>
+          <div class="twin rv">
+            <span class="tag">build.matrixhub.io &nbsp;— the GitHub</span>
+            <h3>Matrix Builder<span>Cloud. Shared. Publishable.</span></h3>
+            <p>The home for your AI builds — like <b>GitHub</b>. Sign in, build in the browser, validate against the standard, keep a full timeline, and publish trusted bundles to the registry.</p>
+            <ul>
+              <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 7"/></svg>Cross-device build history &amp; validation</li>
+              <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 7"/></svg>Per-user, private by default</li>
+              <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 7"/></svg>Publish signed bundles to MatrixHub</li>
+            </ul>
+          </div>
+        </div>
+        <div class="arrow-mid rv">mb push  →  Matrix Builder</div>
+      </div>
+    </section>
+
+    <!-- HOW -->
+    <section id="how">
+      <div class="wrap center">
+        <span class="kicker rv">How it works</span>
+        <h2 class="rv center">One idea. Four controlled steps.</h2>
+        <p class="sub rv">No giant one-shot generation. Small, scoped batches your AI coder follows — and you verify.</p>
+      </div>
+      <div class="wrap">
+        <div class="steps">
+          <div class="step rv"><div class="n">01</div><h4>Describe</h4><p>An idea becomes a controlled blueprint with locked standards.</p></div>
+          <div class="step rv"><div class="n">02</div><h4>Contract</h4><p>A scoped batch declares the exact files and acceptance commands.</p></div>
+          <div class="step rv"><div class="n">03</div><h4>Build</h4><p>Hand the prompt to any AI coder. It stays inside the contract.</p></div>
+          <div class="step rv"><div class="n">04</div><h4>Validate</h4><p>Pass → an immutable Matrix Commit. Fail → a scoped repair prompt.</p></div>
+        </div>
+
+        <div class="term rv">
+          <div class="term-bar"><i></i><i></i><i></i><span>mb — the Matrix build loop</span></div>
+<pre><span class="c"># An idea becomes a controlled, versioned build</span>
+$ <span class="p">mb</span> init <span class="o">"A GitHub repo intelligence agent"</span> --quality standard
+$ <span class="p">mb</span> next <span class="o">"Add repo ingestion"</span>
+$ <span class="p">mb</span> prompt --coder claude-code        <span class="c"># paste into your AI coder</span>
+
+<span class="c"># Validate what the AI changed — the contract is enforced</span>
+$ <span class="p">mb</span> check backend/app/api/routes.py
+<span class="ok">MATRIX_STATUS: approved  score=100  ·  committed mc-454fa2735cd7</span>
+
+$ <span class="p">mb</span> check MATRIX_BLUEPRINT.yaml         <span class="c"># an immutable contract file</span>
+<span class="no">MATRIX_STATUS: rejected  ·  RMD-002: forbidden contract file modified</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRODUCT SHOT -->
+    <section>
+      <div class="wrap center">
+        <span class="kicker rv">See it in action</span>
+        <h2 class="rv center">The web app, the <em>same</em> contract.</h2>
+        <p class="sub rv">Build in the browser at <b style="color:var(--tx)">build.matrixhub.io</b> — choose an AI coder, get a contract-bound prompt, validate the result, keep the timeline.</p>
+      </div>
+      <div class="wrap">
+        <div class="shot rv">
+          <div class="shot-bar"><i></i><i></i><i></i><span>build.matrixhub.io/matrix-builder</span></div>
+          <img src="assets/product.png" alt="Matrix Builder build screen — build progress, AI-coder chooser, and a contract-bound prompt preview" loading="lazy" width="1280" height="800" />
+        </div>
+      </div>
+    </section>
+
+    <!-- WHAT'S INSIDE (links to the deep-dive page) -->
+    <section>
+      <div class="wrap">
+        <div class="inside rv">
+          <div>
+            <h3>Every build ships a signed, controlled bundle.</h3>
+            <p>A blueprint, a locked standards file, scoped tasks, allowed-change boundaries, per-coder prompts, and signed provenance — not a pile of guessed code.</p>
+          </div>
+          <a class="go" href="bundle/">See what&apos;s inside →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- PILLARS -->
+    <section>
+      <div class="wrap center">
+        <span class="kicker rv">Why it matters</span>
+        <h2 class="rv center">Control you can <em>trust</em>.</h2>
+      </div>
+      <div class="wrap">
+        <div class="pillars">
+          <div class="pillar rv">
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.5l7 3v5.5c0 4.3-2.9 7.4-7 9-4.1-1.6-7-4.7-7-9V5.5z"/><path d="M9 12l2 2 4-4.2"/></svg></div>
+            <h4>Contract, not a prompt</h4>
+            <p>Locked standards, allowed-file boundaries, and acceptance criteria — so AI coders become workers, not architects.</p>
+          </div>
+          <div class="pillar rv">
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg></div>
+            <h4>Versioned &amp; immutable</h4>
+            <p>Every accepted change is a Matrix Commit — prompt, diff, standards lock, and validation, pinned forever. A real history for AI work.</p>
+          </div>
+          <div class="pillar rv">
+            <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8.5 7.5L4 12l4.5 4.5"/><path d="M15.5 7.5L20 12l-4.5 4.5"/></svg></div>
+            <h4>Every AI coder</h4>
+            <p>One contract, native prompts for Claude Code, Cursor, Codex, GitPilot, IBM&nbsp;Bob, and more. Switch coders without losing control.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STANDARD -->
+    <section>
+      <div class="wrap">
+        <div class="band rv">
+          <div class="seal"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 7"/></svg></div>
+          <span class="kicker">Built on a public, signed standard</span>
+          <h2 class="center" style="margin-inline:auto">The Ruslan Magana Definitions</h2>
+          <p class="sub center" style="margin-inline:auto">Matrix Builder is governed by <b style="color:var(--tx)">RMD</b> — a versioned, cryptographically signed rule set that pins industry best practices (NIST&nbsp;SSDF, OWASP&nbsp;ASVS &amp; LLM Top&nbsp;10, SLSA) into the contract every build must follow. Open, auditable, and verifiable.</p>
+          <div class="cta-row" style="margin-top:30px"><a class="btn ghost" style="font-family:var(--sans);font-weight:700;font-size:15px" href="https://agent-matrix.github.io/matrix-definitions/definitions/" target="_blank" rel="noopener">Read the standard →</a></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CREATOR -->
+    <section>
+      <div class="wrap">
+        <div class="creator rv">
+          <div class="avatar">RM</div>
+          <div>
+            <div class="role">Created &amp; maintained by</div>
+            <h3>Ruslan Magana Vsevolodovna</h3>
+            <p>AI engineer and researcher, and author of the Ruslan Magana Definitions. Matrix Builder is his vision for safe, controlled, production-ready AI software — a contract layer that lets anyone build with AI coders without losing the rigor that real engineering demands.</p>
+            <div class="links">
+              <a class="chip" href="https://ruslanmv.com" target="_blank" rel="noopener">🌐 ruslanmv.com</a>
+              <a class="chip" href="https://github.com/ruslanmv" target="_blank" rel="noopener">⌥ GitHub</a>
+              <a class="chip" href="https://www.linkedin.com/in/ruslanmv" target="_blank" rel="noopener">in LinkedIn</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPOS -->
+    <section>
+      <div class="wrap center">
+        <span class="kicker rv">Open source</span>
+        <h2 class="rv center">Three repositories, one contract.</h2>
+      </div>
+      <div class="wrap">
+        <div class="repos">
+          <a class="repo rv" href="https://github.com/agent-matrix/matrix-builder" target="_blank" rel="noopener">
+            <div class="nm">agent-matrix/matrix-builder</div>
+            <div class="ds">The GitHub for AI — control plane, web app, and the <code>mb</code>-compatible workflow.</div>
+          </a>
+          <a class="repo rv" href="https://github.com/ruslanmv/agent-generator" target="_blank" rel="noopener">
+            <div class="nm">ruslanmv/agent-generator</div>
+            <div class="ds">The engine + the <code>mb</code> CLI — deterministic generation and validation.</div>
+          </a>
+          <a class="repo rv" href="https://github.com/agent-matrix/matrix-definitions" target="_blank" rel="noopener">
+            <div class="nm">agent-matrix/matrix-definitions</div>
+            <div class="ds">The signed standard — versioned rules every build is locked to.</div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="final">
+      <div class="wrap">
+        <h2 class="rv center" style="margin-inline:auto">Give your AI coders a <em>contract</em>.</h2>
+        <p class="sub center rv" style="margin-inline:auto">Start in the browser, or on your machine in one command.</p>
+        <div class="cta-row rv" style="margin-top:34px">
+          <a class="btn primary" href="https://build.matrixhub.io" target="_blank" rel="noopener">Open Matrix Builder</a>
+          <span class="btn ghost">pip install agent-generator</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot-in">
+      <span>© 2026 Matrix Builder · Created by <a href="https://ruslanmv.com" target="_blank" rel="noopener" style="color:var(--grn-bright);font-weight:600">Ruslan Magana Vsevolodovna</a></span>
+      <span><a href="https://agent-matrix.github.io/matrix-definitions/definitions/" target="_blank" rel="noopener">Definitions</a> · <a href="https://github.com/agent-matrix/matrix-builder" target="_blank" rel="noopener">GitHub</a> · <a href="https://build.matrixhub.io" target="_blank" rel="noopener">Open app</a></span>
+    </div>
+  </footer>
+
+  <script>
+    // Apple-style reveal-on-scroll (respects reduced motion).
+    (function () {
+      var els = document.querySelectorAll('.rv');
+      if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        els.forEach(function (e) { e.classList.add('in'); });
+        return;
+      }
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+        });
+      }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' });
+      els.forEach(function (e) { io.observe(e); });
+    })();
+
+    // Living hero — a slowly rotating node-globe (ported from the app's NetworkCanvas).
+    (function () {
+      var canvas = document.getElementById('hero-canvas');
+      if (!canvas) return;
+      var ctx = canvas.getContext('2d'), parent = canvas.parentElement;
+      if (!ctx || !parent) return;
+      var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2), frame = 0, w = 0, h = 0;
+      function fit() { var r = parent.getBoundingClientRect(); w = r.width; h = r.height; canvas.width = Math.max(1, w * dpr); canvas.height = Math.max(1, h * dpr); }
+      fit(); addEventListener('resize', fit);
+      var N = 116, GA = Math.PI * (3 - Math.sqrt(5)), nodes = [];
+      for (var i = 0; i < N; i++) { var y = 1 - (i / (N - 1)) * 2, rr = Math.sqrt(1 - y * y), t = i * GA; nodes.push([Math.cos(t) * rr, y, Math.sin(t) * rr]); }
+      var edges = [];
+      for (var a = 0; a < N; a++) for (var b = a + 1; b < N; b++) { var s = nodes[a][0]*nodes[b][0]+nodes[a][1]*nodes[b][1]+nodes[a][2]*nodes[b][2]; if (s > 0.86) edges.push([a, b]); }
+      var hubs = [4, 22, 51, 78, 99].filter(function (x) { return x < N; });
+      var pulses = []; for (var k = 0; k < Math.min(7, edges.length); k++) pulses.push({ edge: (k * 13) % edges.length, travel: Math.random() });
+      var tilt = 0.5, ct = Math.cos(tilt), st = Math.sin(tilt), start = -1;
+      function draw(time) {
+        if (start < 0) start = time;
+        var spin = reduced ? 0.6 : 0.6 + (time - start) * 0.00008;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+        var radius = Math.min(w, h) * 0.46, cx = w * 0.5, cy = h * 0.45, cs = Math.cos(spin), ss = Math.sin(spin);
+        var pr = nodes.map(function (n) { var x = n[0], y = n[1], z = n[2], rx = x * cs + z * ss, rz = -x * ss + z * cs, ry = y * ct - rz * st, tz = y * st + rz * ct; return [cx + rx * radius, cy - ry * radius, tz]; });
+        var g = ctx.createRadialGradient(cx, cy, radius * 0.5, cx, cy, radius * 1.25);
+        g.addColorStop(0, 'rgba(34,200,120,.10)'); g.addColorStop(1, 'rgba(34,200,120,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, radius * 1.25, 0, Math.PI * 2); ctx.fill();
+        edges.forEach(function (e) { var p = pr[e[0]], q = pr[e[1]], d = (p[2] + q[2]) / 2; ctx.strokeStyle = 'rgba(83,243,157,' + (0.05 + (d + 1) * 0.07).toFixed(3) + ')'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); });
+        pulses.forEach(function (pl) { if (!reduced) pl.travel += 0.006; if (pl.travel > 1) { pl.travel = 0; pl.edge = (pl.edge + 7) % edges.length; } var e = edges[pl.edge], p = pr[e[0]], q = pr[e[1]], x = p[0] + (q[0] - p[0]) * pl.travel, y = p[1] + (q[1] - p[1]) * pl.travel, dg = ctx.createRadialGradient(x, y, 0, x, y, 5); dg.addColorStop(0, 'rgba(125,255,181,.9)'); dg.addColorStop(1, 'rgba(125,255,181,0)'); ctx.fillStyle = dg; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill(); });
+        pr.forEach(function (p) { var d = (p[2] + 1) / 2; ctx.fillStyle = 'rgba(83,243,157,' + (0.18 + d * 0.55).toFixed(3) + ')'; ctx.beginPath(); ctx.arc(p[0], p[1], 1 + d * 1.8, 0, Math.PI * 2); ctx.fill(); });
+        hubs.forEach(function (hi, idx) { var p = pr[hi]; if (p[2] < -0.1) return; var pl = reduced ? 1 : 0.7 + 0.3 * Math.sin(time / 600 + idx * 1.6), hg = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], 10 * pl); hg.addColorStop(0, 'rgba(83,243,157,.7)'); hg.addColorStop(1, 'rgba(83,243,157,0)'); ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(p[0], p[1], 10 * pl, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#7dffb5'; ctx.beginPath(); ctx.arc(p[0], p[1], 2.3, 0, Math.PI * 2); ctx.fill(); });
+        if (!reduced) frame = requestAnimationFrame(draw);
+      }
+      draw(performance.now());
+    })();
+  </script>
+</body>
+</html>
