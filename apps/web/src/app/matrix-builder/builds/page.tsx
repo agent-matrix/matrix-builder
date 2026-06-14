@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import AuthControls from "../AuthControls";
 import BundleThumbnail from "../BundleThumbnail";
-import { SAVED_BUNDLES, thumbVariant, type BuildStatus } from "@/lib/saved-bundles";
+import { AUTH_EVENT } from "@/lib/auth-token";
+import { BUILDS_EVENT, listBuilds, updatedLabel, type SavedBuild } from "@/lib/builds-store";
+import { thumbVariant, type BuildStatus } from "@/lib/saved-bundles";
 
 const I = {
   search: (<><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.2-3.2" /></>),
@@ -25,13 +27,29 @@ export default function MyBuildsPage() {
   const router = useRouter();
   const [qy, setQy] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [builds, setBuilds] = useState<SavedBuild[]>([]);
 
-  let list = SAVED_BUNDLES.filter((b) => (b.name + " " + b.description).toLowerCase().includes(qy.toLowerCase()));
+  // Builds live in localStorage, scoped to the signed-in account; re-read when they change
+  // or the account switches so each user only ever sees their own private builds.
+  useEffect(() => {
+    const refresh = () => setBuilds(listBuilds());
+    refresh();
+    window.addEventListener(BUILDS_EVENT, refresh);
+    window.addEventListener(AUTH_EVENT, refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener(BUILDS_EVENT, refresh);
+      window.removeEventListener(AUTH_EVENT, refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+
+  let list = builds.filter((b) => (b.name + " " + b.description).toLowerCase().includes(qy.toLowerCase()));
   if (filter === "validated") list = list.filter((b) => b.status === "validated");
   else if (filter === "drafts") list = list.filter((b) => b.status === "draft");
   else if (filter === "recent") list = list.slice(0, 4);
 
-  const open = () => router.push("/matrix-builder");
+  const open = (id: string) => router.push(`/matrix-builder/builds/${id}`);
 
   return (
     <div className="mb-dark-page">
@@ -64,12 +82,12 @@ export default function MyBuildsPage() {
         {list.length ? (
           <div className="lib-grid stag">
             {list.map((b) => (
-              <article key={b.id} className="bundle-card" tabIndex={0} onClick={open} onKeyDown={(e) => e.key === "Enter" && open()}>
+              <article key={b.id} className="bundle-card" tabIndex={0} onClick={() => open(b.id)} onKeyDown={(e) => e.key === "Enter" && open(b.id)}>
                 <div className="bc-thumb"><BundleThumbnail variant={thumbVariant(b.id)} /><span className="bc-lock"><Ic d={I.lock} size={14} /></span></div>
                 <div className="bc-name">{b.name}</div>
                 <div className="bc-desc">{b.description}</div>
                 <div className={"bc-status " + b.status}>{b.status === "validated" ? <Ic d={I.check} size={13} /> : <span className="bc-sd" />}{STATUS_LABEL[b.status]}</div>
-                <div className="bc-meta"><Ic d={I.doc} size={13} />{b.files} files <span className="bc-dotsep">·</span> {b.updated}</div>
+                <div className="bc-meta"><Ic d={I.doc} size={13} />{b.files} files <span className="bc-dotsep">·</span> {updatedLabel(b.updatedAt)}</div>
               </article>
             ))}
           </div>
