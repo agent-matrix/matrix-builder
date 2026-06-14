@@ -984,12 +984,15 @@ button,select,a{-webkit-tap-highlight-color:transparent;touch-action:manipulatio
   position: sticky;
   top: 80px;
 }
-.tl-thumb { border-radius: 16px; overflow: hidden; }
-.tl-thumb svg { display: block; height: auto; width: 100%; }
+/* These timeline rules belong to the older /builder/* workflow pages (the .tl-grid layout).
+   They are scoped under .tl-grid so they do NOT override the dark matrix-builder timeline,
+   which reuses the same .tl-card / .tl-title / .tl-list class names on a dark page. */
+.tl-grid .tl-thumb { border-radius: 16px; overflow: hidden; }
+.tl-grid .tl-thumb svg { display: block; height: auto; width: 100%; }
 .tl-version-label { color: var(--tx-dark); font-family: var(--mono); font-size: 13px; font-weight: 700; }
 .tl-version-title { color: var(--tx-muted); font-size: 14px; line-height: 1.45; }
-.tl-list { display: grid; gap: 12px; }
-.tl-card {
+.tl-grid .tl-list { display: grid; gap: 12px; }
+.tl-grid .tl-card {
   align-items: flex-start;
   background: #fff;
   border: 1px solid var(--bd-light);
@@ -999,7 +1002,7 @@ button,select,a{-webkit-tap-highlight-color:transparent;touch-action:manipulatio
   gap: 14px;
   padding: 16px 18px;
 }
-.tl-card.tl-commit { border-left: 3px solid var(--grn); }
+.tl-grid .tl-card.tl-commit { border-left: 3px solid var(--grn); }
 .tl-ic {
   align-items: center;
   background: var(--grn-tint);
@@ -1010,9 +1013,9 @@ button,select,a{-webkit-tap-highlight-color:transparent;touch-action:manipulatio
   place-items: center;
   width: 38px;
 }
-.tl-body { flex: 1; min-width: 0; }
-.tl-title { color: var(--tx-dark); font-family: var(--mono); font-size: 13.5px; font-weight: 700; word-break: break-word; }
-.tl-meta { align-items: center; display: flex; gap: 16px; margin-top: 8px; }
+.tl-grid .tl-body { flex: 1; min-width: 0; }
+.tl-grid .tl-title { color: var(--tx-dark); font-family: var(--mono); font-size: 13.5px; font-weight: 700; word-break: break-word; }
+.tl-grid .tl-meta { align-items: center; display: flex; gap: 16px; margin-top: 8px; }
 .tl-review {
   align-items: center;
   color: var(--grn-deep);
