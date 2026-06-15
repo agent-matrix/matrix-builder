@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import asdict, dataclass, is_dataclass
+from typing import Any, TypeVar
+
+from pydantic import BaseModel
 
 from app.schemas.blueprint import BlueprintCandidate, BlueprintResult, BlueprintStack, BlueprintTask
 from app.schemas.bundle import MatrixBundle
@@ -15,6 +17,56 @@ from app.services.ai_coder_prompt_service import normalize_coder as normalize_pr
 from app.utils.hashing import sha256_text
 from app.utils.ids import stable_id
 from app.utils.time import utc_now
+
+_M = TypeVar("_M", bound=BaseModel)
+
+
+def _to_plain(obj: Any) -> Any:
+    """Best-effort conversion of an engine value into a plain dict/list of primitives."""
+    if isinstance(obj, BaseModel):
+        return obj.model_dump(mode="python")
+    if is_dataclass(obj) and not isinstance(obj, type):
+        return asdict(obj)
+    if isinstance(obj, dict):
+        return {k: _to_plain(v) for k, v in obj.items()}
+    if isinstance(obj, list | tuple):
+        return [_to_plain(v) for v in obj]
+    return obj
+
+
+def _coerce(model: type[_M], obj: Any) -> _M:
+    """Normalize an agent-generator engine object into a matrix-builder schema model.
+
+    The engine returns its own contract classes whose field names mirror these schemas
+    (guarded by the cross-repo parity test), but they are *different* classes, so the API's
+    strict response models reject them. We dump to a plain dict, keep only known fields
+    (the schemas forbid extras), and re-validate into the matrix-builder model.
+    """
+    if isinstance(obj, model):
+        return obj
+    data = _to_plain(obj)
+    if isinstance(data, dict):
+        data = {k: v for k, v in data.items() if k in model.model_fields}
+    return model.model_validate(data)
+
+
+def _to_engine(import_path: str, class_name: str, obj: Any) -> Any:
+    """Re-hydrate an engine-native contract object from a matrix-builder model.
+
+    The engine's methods both accept and return their own contract classes, which carry
+    behavior the API schemas don't (e.g. ``BlueprintResult.to_definitions_dict``). When the
+    WorkflowService chains engine calls, it hands a previously-coerced matrix-builder model back
+    in; we must rebuild the engine-native object first. Field names are kept in parity by the
+    cross-repo schema test, so a dump/validate round-trip is faithful.
+    """
+    if not isinstance(obj, BaseModel):
+        return obj
+    import importlib
+
+    engine_cls = getattr(importlib.import_module(import_path), class_name)
+    if isinstance(obj, engine_cls):
+        return obj
+    return engine_cls.model_validate(obj.model_dump(mode="python"))
 
 
 class AgentGeneratorUnavailableError(RuntimeError):
@@ -119,7 +171,7 @@ class AgentGeneratorAdapter:
 
     def parse_idea(self, payload: IdeaRequest) -> IdeaIntent:
         if self._engine and hasattr(self._engine, "parse_idea"):
-            return self._engine.parse_idea(payload)  # type: ignore[no-any-return]
+            return _coerce(IdeaIntent, self._engine.parse_idea(payload))
         return IdeaIntent(
             normalized_idea=_normalize(payload.idea),
             build_type=payload.build_type,
@@ -131,7 +183,10 @@ class AgentGeneratorAdapter:
 
     def generate_blueprint_candidates(self, payload: IdeaRequest) -> list[BlueprintCandidate]:
         if self._engine and hasattr(self._engine, "generate_blueprint_candidates"):
-            return self._engine.generate_blueprint_candidates(payload)  # type: ignore[no-any-return]
+            return [
+                _coerce(BlueprintCandidate, c)
+                for c in self._engine.generate_blueprint_candidates(payload)
+            ]
 
         idea = _normalize(payload.idea)
         slug = _slugify(idea)
@@ -193,7 +248,10 @@ class AgentGeneratorAdapter:
         candidate_id: str | None = None,
     ) -> BlueprintResult:
         if self._engine and hasattr(self._engine, "generate_controlled_blueprint"):
-            return self._engine.generate_controlled_blueprint(payload, candidate_id=candidate_id)  # type: ignore[no-any-return]
+            return _coerce(
+                BlueprintResult,
+                self._engine.generate_controlled_blueprint(payload, candidate_id=candidate_id),
+            )
 
         candidates = self.generate_blueprint_candidates(payload)
         selected = _select_candidate(candidates, candidate_id)
@@ -266,7 +324,15 @@ class AgentGeneratorAdapter:
         preferred_coder: CoderId = CoderId.GENERIC_AI_CODER,
     ) -> MatrixBundle:
         if self._engine and hasattr(self._engine, "generate_matrix_bundle"):
-            return self._engine.generate_matrix_bundle(blueprint, preferred_coder=preferred_coder)  # type: ignore[no-any-return]
+            engine_blueprint = _to_engine(
+                "agent_generator.contracts.blueprint", "BlueprintResult", blueprint
+            )
+            return _coerce(
+                MatrixBundle,
+                self._engine.generate_matrix_bundle(
+                    engine_blueprint, preferred_coder=preferred_coder
+                ),
+            )
 
         bundle_id = stable_id("bundle", f"{blueprint.blueprint_id}:{preferred_coder}")
         now = utc_now()
@@ -293,6 +359,27 @@ class AgentGeneratorAdapter:
             },
         )
 
+    def compile_bundle_files(
+        self,
+        blueprint: BlueprintResult,
+        preferred_coder: CoderId | str = CoderId.GENERIC_AI_CODER,
+    ) -> dict[str, bytes] | None:
+        """Return the engine's compiled bundle content (path → bytes) when the real engine is loaded.
+
+        This is the byte-for-byte file set the CLI ships (``engine.compile_bundle``). In mock mode
+        there is no engine to compile, so we return None and the BundleStore falls back to its
+        deterministic dev render. The BundleStore writes these bytes verbatim into the bundle's
+        content root and zip, so what the UI downloads equals what ``mb`` produces.
+        """
+        if not (self._engine and hasattr(self._engine, "compile_bundle")):
+            return None
+        engine_blueprint = _to_engine(
+            "agent_generator.contracts.blueprint", "BlueprintResult", blueprint
+        )
+        coder = normalize_prompt_coder(preferred_coder).value
+        compiled = self._engine.compile_bundle(engine_blueprint, preferred_coder=coder)
+        return {f.path: f.content.encode("utf-8") for f in compiled.files}
+
     def generate_coder_prompt(
         self,
         bundle_id: str,
@@ -301,13 +388,19 @@ class AgentGeneratorAdapter:
     ) -> PromptResponse:
         coder_id = normalize_prompt_coder(coder)
         if self._engine and hasattr(self._engine, "generate_coder_prompt_pack"):
-            return self._engine.generate_coder_prompt_pack(bundle_id=bundle_id, coder=coder_id)  # type: ignore[no-any-return]
+            return _coerce(
+                PromptResponse,
+                self._engine.generate_coder_prompt_pack(bundle_id=bundle_id, coder=coder_id),
+            )
 
         return build_prompt_response(bundle_id=bundle_id, coder=coder_id, bundle_url=bundle_url)
 
     def validate_bundle(self, bundle_id: str) -> ValidationReport:
         if self._engine and hasattr(self._engine, "validate_ai_coder_patch"):
-            return self._engine.validate_ai_coder_patch(bundle_id=bundle_id)  # type: ignore[no-any-return]
+            return _coerce(
+                ValidationReport,
+                self._engine.validate_ai_coder_patch(bundle_id=bundle_id),
+            )
         return ValidationReport(
             report_id=stable_id("val", bundle_id),
             bundle_id=bundle_id,

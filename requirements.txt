@@ -7,6 +7,12 @@ fastapi>=0.115
 uvicorn[standard]>=0.32
 pydantic>=2.8
 
+# --- the generation/validation engine (real, not mock) ---
+# Matrix Builder orchestrates; agent-generator generates. With AGENT_GENERATOR_MODE=sdk
+# the adapter loads agent_generator.engine.AgentGenerator instead of fabricating results.
+# 0.2.0 is the release that satisfies the matrix-definitions compatibility gate (>=0.2.0).
+agent-generator>=0.2.0
+
 # --- persistence (Aiven Postgres + RLS + self-issued JWT) ---
 sqlalchemy>=2.0
 alembic>=1.13

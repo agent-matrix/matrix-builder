@@ -271,7 +271,7 @@ export default function AboutPage() {
           <p>Turn your next software idea into a structured AI build contract.</p>
           <div className="mb-about-cta">
             <Link className="mb-about-btn primary" href="/matrix-builder">Open Matrix Builder <span aria-hidden="true">→</span></Link>
-            <Link className="mb-about-btn ghost" href="/docs">Read the docs</Link>
+            <a className="mb-about-btn ghost" href="https://agent-matrix.github.io/matrix-builder/site/" target="_blank" rel="noreferrer">Read the docs</a>
           </div>
         </div>
       </section>
@@ -279,7 +279,7 @@ export default function AboutPage() {
       <footer className="mb-about-foot">
         <div className="l-wrap mb-about-foot-in">
           <span>© 2026 Matrix Builder · <a href="https://ruslanmv.com">Ruslan Magana</a> · MIT</span>
-          <span><Link href="/matrix-builder">App</Link> · <Link href="/docs">Docs</Link> · <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link> · <a href="https://github.com/agent-matrix/matrix-builder">GitHub</a></span>
+          <span><Link href="/matrix-builder">App</Link> · <a href="https://agent-matrix.github.io/matrix-builder/site/" target="_blank" rel="noreferrer">Docs</a> · <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link> · <a href="https://github.com/agent-matrix/matrix-builder">GitHub</a></span>
         </div>
       </footer>
     </div>

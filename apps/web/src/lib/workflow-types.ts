@@ -91,6 +91,126 @@ export interface RunEvent {
   created_at: string | null;
 }
 
+// --- Projects / Versions (the persistent home of a "build") -------------------------------
+
+export interface ProjectResponse {
+  id: string;
+  owner_id: string;
+  title: string;
+  slug: string;
+  description: string;
+  status: string;
+  privacy: string;
+  created_at: string;
+}
+
+export interface ProjectCreate {
+  title: string;
+  slug: string;
+  description?: string;
+}
+
+export interface VersionCreate {
+  project_id: string;
+  title: string;
+  version_label?: string;
+  requirements_md?: string;
+  parent_version_id?: string | null;
+}
+
+// --- Execution: submit what the AI coder changed; commit + validate in one call ------------
+
+export interface ChangedFile {
+  path: string;
+  change_type?: "added" | "modified" | "deleted";
+}
+
+export interface DependencyChange {
+  name: string;
+  version?: string | null;
+  action?: "added" | "removed" | "updated";
+}
+
+export interface ExecutionRequest {
+  coder?: string;
+  changed_files?: ChangedFile[];
+  dependency_changes?: DependencyChange[];
+  patch?: string | null;
+  summary?: string;
+}
+
+export interface ExecutionResponse {
+  commit: CommitResponse;
+  validation_run: ValidationRunResponse;
+  outcome: string;
+  next_action: string;
+}
+
+// --- Async runs (enqueue + stream events) -------------------------------------------------
+
+export interface RunResponse {
+  id: string;
+  batch_id: string | null;
+  commit_id: string | null;
+  status: string;
+  ui_label: string;
+  score: number | null;
+  runner: string;
+}
+
+export interface RunEnqueueResponse {
+  run_id: string;
+  status: string;
+  ui_label: string;
+  events_url: string;
+  ws_url: string;
+}
+
+export interface RepairBatchRequest {
+  validation_run_id: string;
+  coder?: string;
+}
+
+// --- Commits, diffs and artifacts (the immutable record of an accepted change) -------------
+
+export interface CommitResponse {
+  id: string;
+  version_id: string;
+  batch_id: string;
+  commit_no: number;
+  summary: string;
+  tree_hash: string;
+  validation_status: string;
+  ui_label: string;
+  parent_commit_id: string | null;
+  created_at: string;
+}
+
+export interface CommitDiffResponse {
+  base_commit_id: string | null;
+  head_commit_id: string;
+  patch: string;
+}
+
+export interface ArtifactResponse {
+  id: string;
+  artifact_type: string;
+  storage_key: string;
+  sha256: string;
+  size_bytes: number;
+}
+
+// --- Generation (idea → candidates → bundle), normalized to the API contract --------------
+
+export interface IdeaIntentResponse {
+  normalized_idea: string;
+  build_type: string;
+  goal: string;
+  preferred_coder: string;
+  quality_level?: string;
+  constraints?: Record<string, unknown>;
+}
+
 export const CHANGE_TYPES: { id: ChangeType; label: string; hint: string }[] = [
   { id: "small-update", label: "Small update", hint: "A focused tweak inside the current version." },
   { id: "add-feature", label: "Add feature", hint: "A new capability, scoped to one batch." },

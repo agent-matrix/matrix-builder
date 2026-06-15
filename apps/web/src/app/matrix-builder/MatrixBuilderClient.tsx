@@ -10,13 +10,54 @@ import { saveBuildProgress } from "@/lib/builds-store";
 import { thumbVariant, type BuildStatus } from "@/lib/saved-bundles";
 import { createBundleFiles } from "@/lib/matrix-bundle";
 import { createBlueprintCandidates } from "@/lib/matrix-demo-data";
+import { toUiBundleFiles, toUiCandidates } from "@/lib/engine-map";
+import { enrichBlueprintCandidates, explainValidationFindings, type EnrichmentMap } from "@/lib/ai-provider-manager";
+import {
+  downloadBundleZip,
+  generateBundle as apiGenerateBundle,
+  getBlueprintCandidates,
+  getBundle,
+  getBundlePrompt,
+  parseIdea,
+  validateChanges,
+} from "@/lib/workflow-client";
 import { generateBundleId } from "@/lib/ids";
 import { makeZip } from "@/lib/zip";
 import type { BlueprintCandidate } from "@/types/blueprint";
-import type { BundleFile } from "@/types/bundle";
+import type { BundleFile, MatrixBundleContract } from "@/types/bundle";
 import type { CoderId } from "@/types/coder";
+import type { ValidationReportContract } from "@/types/contracts";
 
-type Phase = "hero" | "scanning" | "candidates" | "bundle" | "submit" | "validation" | "timeline" | "complete";
+type Phase = "hero" | "scanning" | "candidates" | "bundle" | "submit" | "running" | "validation" | "timeline" | "complete";
+
+// Paths the AI coder reports as changed (parsed from the pasted result) → validated against the
+// contract. status defaults to "modified".
+type ChangedPath = { path: string; status: "added" | "modified" | "deleted" | "renamed" };
+
+// Pull file paths out of whatever the user pasted (a summary, a git diff, a file list). We look for
+// path-shaped tokens and strip common diff/list prefixes; if nothing parses we fall back to the
+// batch's allowed files so "Check AI output" always validates a real change set.
+function parseChangedFiles(text: string, fallback: string[]): ChangedPath[] {
+  const found = new Set<string>();
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim().replace(/^[-+*]\s+/, "").replace(/^(modified|added|deleted|renamed|M|A|D|R):?\s+/i, "");
+    const token = line.split(/\s+/)[0]?.replace(/^["'`]|["'`]$/g, "");
+    if (token && /^[\w][\w./-]*\.[A-Za-z0-9]+$/.test(token) && token.includes("/")) found.add(token);
+  }
+  const paths = found.size ? [...found] : fallback;
+  return paths.map((path) => ({ path, status: "modified" as const }));
+}
+
+// A deterministic Matrix Commit id from the validation result (mirrors the CLI's mc-<hash>).
+function deriveCommitId(report: ValidationReportContract): string {
+  const seed = `${report.bundle_id}:${report.report_id}:${report.score}`;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < seed.length; i += 1) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `mc-${h.toString(16).padStart(8, "0")}${seed.length.toString(16).padStart(4, "0")}`;
+}
 
 // A build the user reopened from My Builds, reconstructed from persisted state.
 export type InitialBuild = {
@@ -628,13 +669,19 @@ function LandingHero({ idea, setIdea, generate }: { idea: string; setIdea: (valu
   );
 }
 
-function CandidateCard({ candidate, choose }: { candidate: BlueprintCandidate; choose: (candidate: BlueprintCandidate) => void }) {
+function CandidateCard({ candidate, choose, enrichment }: { candidate: BlueprintCandidate; choose: (candidate: BlueprintCandidate) => void; enrichment?: { displayName?: string; displaySummary?: string } }) {
+  // Display-only: the deterministic candidate still drives bundle generation. AI may only soften
+  // the visible name/summary; an explicit badge tells the user the wording was AI-assisted.
+  const name = enrichment?.displayName ?? candidate.name;
+  const summary = enrichment?.displaySummary ?? candidate.summary;
+  const aiAssisted = Boolean(enrichment?.displayName || enrichment?.displaySummary);
   return (
     <article className={`cand${candidate.recommended ? " rec" : ""}`} onClick={() => choose(candidate)}>
       {candidate.recommended && <span className="cand-rec">Recommended</span>}
       <div className="cand-tier">{candidate.tier}</div>
-      <div className="cand-name">{candidate.name}</div>
-      <div className="cand-sum">{candidate.summary}</div>
+      <div className="cand-name">{name}</div>
+      <div className="cand-sum">{summary}</div>
+      {aiAssisted && <span className="cand-ai-badge">✦ AI-assisted wording</span>}
       <div className="cand-meta">
         <span className="mb-tag n">{candidate.files} files</span>
         <span className="mb-tag n">{candidate.difficulty}</span>
@@ -673,44 +720,38 @@ function BundleResult({
   batchIndex,
   coder,
   setCoder,
-  files,
+  prompt,
+  promptLoading,
+  bundleLoading,
+  fileCount,
   showToast,
   onNew,
   onMyBuilds,
   onSubmit,
   onTimeline,
+  onDownload,
 }: {
   candidate: BlueprintCandidate;
   batchIndex: number;
   coder: CoderId;
   setCoder: (coder: CoderId) => void;
-  files: BundleFile[];
+  prompt: string;
+  promptLoading: boolean;
+  bundleLoading: boolean;
+  fileCount: number;
   showToast: (message: string) => void;
   onNew: () => void;
   onMyBuilds: () => void;
   onSubmit: () => void;
   onTimeline: () => void;
+  onDownload: () => void;
 }) {
   const buildName = candidate.name;
   const coderEntry = AI_CODERS.find((item) => item.id === coder) ?? AI_CODERS[1];
   const cur = STAGES[batchIndex];
-  const prompt = batchPrompt(coderEntry.name, buildName, cur, coder === "generic-ai-coder");
-
-  const downloadZip = () => {
-    const blob = makeZip(files);
-    const anchor = document.createElement("a");
-    anchor.href = URL.createObjectURL(blob);
-    anchor.download = `${candidate.name}-matrix-bundle.zip`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    setTimeout(() => {
-      URL.revokeObjectURL(anchor.href);
-      anchor.remove();
-    }, 1500);
-    showToast("ZIP downloaded — open README.md first");
-  };
 
   const copyPrompt = async () => {
+    if (!prompt) return;
     try {
       await navigator.clipboard?.writeText(prompt);
     } catch {
@@ -773,10 +814,20 @@ function BundleResult({
           </div>
 
           <article className="darkpanel br-prompt reveal">
-            <div className="br-prompt-bar"><span className="br-pt">Prompt preview — <span className="cc-grn">{coderEntry.short}</span></span><CopyButton text={prompt} onDone={() => showToast("Prompt copied to clipboard")} /></div>
-            <pre>{prompt}{"\n\n..."}</pre>
+            <div className="br-prompt-bar"><span className="br-pt">Prompt preview — <span className="cc-grn">{coderEntry.short}</span></span>{!promptLoading && prompt && <CopyButton text={prompt} onDone={() => showToast("Prompt copied to clipboard")} />}</div>
+            {promptLoading ? (
+              <pre className="br-prompt-skel" aria-busy="true">
+                <span className="skel-line" />
+                <span className="skel-line w80" />
+                <span className="skel-line w60" />
+                <span className="skel-line w90" />
+                <span className="skel-line w50" />
+              </pre>
+            ) : (
+              <pre>{prompt}{"\n\n..."}</pre>
+            )}
           </article>
-          <button className="bo-btn primary br-copy reveal" type="button" onClick={() => void copyPrompt()}><MatrixIcon size={17}>{icons.copy}</MatrixIcon>Copy Batch {cur.n} prompt</button>
+          <button className="bo-btn primary br-copy reveal" type="button" disabled={promptLoading || !prompt} onClick={() => void copyPrompt()}><MatrixIcon size={17}>{icons.copy}</MatrixIcon>Copy Batch {cur.n} prompt</button>
         </div>
 
         {/* RIGHT: next step */}
@@ -785,9 +836,9 @@ function BundleResult({
             <div className="br-next-top"><span className="br-next-ic"><MatrixIcon size={22}>{icons.plug}</MatrixIcon></span><span className="br-next-k">Next step</span></div>
             <div className="br-next-t">Run this prompt in your AI coder.</div>
             <div className="br-next-d">Open your preferred AI coder, paste the prompt, and let it implement Batch {cur.n}.</div>
-            <button className="bo-btn primary full" type="button" onClick={onSubmit}><MatrixIcon size={16}>{icons.check}</MatrixIcon>I ran this batch</button>
+            <button className="bo-btn primary full" type="button" disabled={bundleLoading} onClick={onSubmit}><MatrixIcon size={16}>{icons.check}</MatrixIcon>I ran this batch</button>
             <button className="bo-btn full" type="button" onClick={onTimeline}><MatrixIcon size={16}>{icons.clock}</MatrixIcon>View timeline</button>
-            <button className="bo-btn full" type="button" onClick={downloadZip}><MatrixIcon size={16}>{icons.download}</MatrixIcon>Download ZIP ({files.length} files)</button>
+            <button className="bo-btn full" type="button" disabled={bundleLoading} onClick={onDownload}><MatrixIcon size={16}>{icons.download}</MatrixIcon>{bundleLoading ? "Preparing bundle…" : `Download ZIP (${fileCount} files)`}</button>
           </article>
         </aside>
       </div>
@@ -798,20 +849,23 @@ function BundleResult({
 // Submit-AI-result page — paste/diff/zip tabs, then "Check AI output" runs validation.
 function SubmitResult({
   batchIndex,
+  fallbackFiles,
   showToast,
   onNew,
   onBack,
   onValidate,
 }: {
   batchIndex: number;
+  fallbackFiles: string[];
   showToast: (message: string) => void;
   onNew: () => void;
   onBack: () => void;
-  onValidate: () => void;
+  onValidate: (changed: ChangedPath[]) => void;
 }) {
   const cur = STAGES[batchIndex];
   const [resTab, setResTab] = useState<"summary" | "diff" | "zip">("summary");
   const [result, setResult] = useState("");
+  const runValidation = () => onValidate(parseChangedFiles(result, fallbackFiles));
   const tabs: Array<[typeof resTab, string, keyof typeof icons]> = [
     ["summary", "Paste summary", "edit"],
     ["diff", "Paste git diff", "code"],
@@ -846,7 +900,7 @@ function SubmitResult({
           <textarea className="paste-text tall" value={result} onChange={(event) => setResult(event.target.value)} placeholder={placeholder} />
           <div className="paste-hint">Include files changed, commands run, test results, and notes.</div>
           <div className="paste-actions">
-            <button className="bo-btn primary" type="button" onClick={onValidate}><MatrixIcon size={16}>{icons.check}</MatrixIcon>Check AI output</button>
+            <button className="bo-btn primary" type="button" onClick={runValidation}><MatrixIcon size={16}>{icons.check}</MatrixIcon>Check AI output</button>
             <button className="bo-btn" type="button" onClick={onBack}>Cancel</button>
           </div>
         </article>
@@ -856,31 +910,171 @@ function SubmitResult({
   );
 }
 
-// Validation-result page — the contract check passed; offer to continue or view the timeline.
+// Run log — streams the live validation run (real findings from the API, streamed line by line).
+// The DB-backed async run (enqueueRun/WS) is a later, paid-storage feature; this drives the same
+// terminal UX from the stateless validation call so the user watches the contract check happen.
+type LogLine = { t: string; cls?: "ok" | "bad" | "warn" | "dim" };
+
+function RunLog({
+  report,
+  failed,
+  coder,
+  batchN,
+  changedCount,
+  showToast,
+  onNew,
+  onComplete,
+}: {
+  report: ValidationReportContract | null;
+  failed: boolean;
+  coder: CoderId;
+  batchN: string;
+  changedCount: number;
+  showToast: (message: string) => void;
+  onNew: () => void;
+  onComplete: () => void;
+}) {
+  const coderEntry = AI_CODERS.find((item) => item.id === coder) ?? AI_CODERS[1];
+  const queue = useRef<LogLine[]>([]);
+  const enqueuedResult = useRef(false);
+  const [lines, setLines] = useState<LogLine[]>([]);
+  const [done, setDone] = useState(false);
+
+  // The streamer drains one queued line at a time so the log "types" itself.
+  useEffect(() => {
+    const id = setInterval(() => {
+      setLines((cur) => (queue.current.length ? [...cur, queue.current.shift() as LogLine] : cur));
+    }, 300);
+    return () => clearInterval(id);
+  }, []);
+
+  // Preamble on mount.
+  useEffect(() => {
+    queue.current = [
+      { t: `$ matrix run --batch ${batchN} --coder ${coderEntry.short}` },
+      { t: "▸ connecting to the Matrix validator …", cls: "dim" },
+      { t: "▸ loading contract: MATRIX_STANDARDS.lock · MATRIX_ALLOWED_CHANGES.md", cls: "dim" },
+      { t: `▸ submitting ${changedCount} changed file(s) from your AI coder …`, cls: "dim" },
+      { t: "▸ checking the patch against the build contract …", cls: "dim" },
+    ];
+    setLines([]);
+  }, [batchN, changedCount, coderEntry.short]);
+
+  // When the real report (or failure) lands, enqueue the real check lines + outcome, then finish.
+  useEffect(() => {
+    if (enqueuedResult.current) return undefined;
+    if (!report && !failed) return undefined;
+    enqueuedResult.current = true;
+
+    if (!report) {
+      queue.current.push({ t: "✗ validator unreachable — could not complete the run", cls: "bad" });
+      queue.current.push({ t: "MATRIX_STATUS: error", cls: "bad" });
+    } else {
+      for (const c of report.checks) {
+        queue.current.push({
+          t: `${c.status === "passed" ? "✓" : c.status === "skipped" ? "•" : "✗"} ${c.check_id}${c.message ? ` — ${c.message}` : ""}`,
+          cls: c.status === "passed" ? "ok" : c.status === "skipped" ? "dim" : "bad",
+        });
+      }
+      for (const v of report.violations) {
+        queue.current.push({ t: `  ✗ ${v.rule_id}: ${v.message}`, cls: "bad" });
+      }
+      const label = report.status === "approved" ? "approved" : report.status === "needs-repair" ? "needs_repair" : "rejected";
+      queue.current.push({
+        t: `MATRIX_STATUS: ${label}  score=${report.score}`,
+        cls: report.status === "approved" ? "ok" : report.status === "needs-repair" ? "warn" : "bad",
+      });
+    }
+
+    const drain = setInterval(() => {
+      if (queue.current.length === 0) {
+        clearInterval(drain);
+        setTimeout(() => setDone(true), 500);
+      }
+    }, 200);
+    return () => clearInterval(drain);
+  }, [report, failed]);
+
+  return (
+    <div className="mb-dark-page">
+      <header className="mb-detail-bar"><div className="l-wrap dbar-in">
+        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <div className="dbar-r" style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+          <button className="l-newbuild" type="button" onClick={onNew}><MatrixIcon size={15}>{icons.plus}</MatrixIcon>New build</button>
+          <AuthControls onNotice={showToast} />
+        </div>
+      </div></header>
+
+      <div className="l-wrap val">
+        <h1 className="val-h1 reveal">Running validation</h1>
+        <p className="upd-sub reveal">Checking the AI coder&apos;s changes against the build contract — live.</p>
+
+        <article className="darkpanel runlog reveal" aria-live="polite">
+          <div className="runlog-bar"><span className="runlog-dots"><i /><i /><i /></span><span className="runlog-k">matrix · batch {batchN}</span></div>
+          <pre className="runlog-body">
+            {lines.map((line, i) => (
+              <span key={i} className={`rl ${line.cls ?? ""}`}>{line.t}{"\n"}</span>
+            ))}
+            {!done && <span className="rl-cursor">▋</span>}
+          </pre>
+        </article>
+
+        <div className="val-actions reveal">
+          <button className="bo-btn primary" type="button" disabled={!done} onClick={onComplete}>
+            {done ? <>View validation result <MatrixIcon size={16}>{icons.arrow}</MatrixIcon></> : <>Running…</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Validation-result page — shows the real contract result (approved / needs-repair / rejected),
+// the real findings, and the Matrix Commit on success.
 function ValidationResult({
   batchIndex,
   coder,
+  report,
+  commitId,
+  explanation,
   showToast,
   onNew,
   onBack,
   onTimeline,
   onContinue,
   onFinish,
+  onRepair,
 }: {
   batchIndex: number;
   coder: CoderId;
+  report: ValidationReportContract | null;
+  commitId: string;
+  explanation: string | null;
   showToast: (message: string) => void;
   onNew: () => void;
   onBack: () => void;
   onTimeline: () => void;
   onContinue: () => void;
   onFinish: () => void;
+  onRepair: () => void;
 }) {
   const cur = STAGES[batchIndex];
   const coderEntry = AI_CODERS.find((item) => item.id === coder) ?? AI_CODERS[1];
-  const commitN = `#0${cur.n}`;
   const isLast = batchIndex >= STAGES.length - 1;
   const nextN = STAGES[batchIndex + 1]?.n ?? "";
+  const status = report?.status ?? "rejected";
+  const passed = status === "approved";
+  const score = report?.score ?? 0;
+  // Real findings: the failing checks and explicit violations the engine returned.
+  const findings = [
+    ...(report?.violations ?? []).map((v) => ({ key: v.rule_id, label: v.rule_id, message: v.message, remediation: v.remediation ?? null })),
+    ...(report?.checks ?? []).filter((c) => c.status === "failed").map((c) => ({ key: c.check_id, label: c.check_id, message: c.message ?? "Check failed.", remediation: null })),
+  ];
+  const heroClass = passed ? "passed" : status === "needs-repair" ? "repair" : "rejected";
+  const title = passed ? `Batch ${cur.n} passed` : status === "needs-repair" ? `Batch ${cur.n} needs repair` : `Batch ${cur.n} rejected`;
+  const note = passed
+    ? `Matrix Commit ${commitId} created. The AI coder followed the contract.`
+    : `The AI coder's changes did not satisfy the contract (score ${score}/100). Fix the findings and resubmit.`;
 
   return (
     <div className="mb-dark-page">
@@ -897,24 +1091,47 @@ function ValidationResult({
         <h1 className="val-h1 reveal">Validation Result</h1>
         <p className="upd-sub reveal">Check if the AI coder followed the contract.</p>
 
-        <article className="val-hero passed reveal">
-          <span className="vh-ic ok"><MatrixIcon size={30}>{icons.check}</MatrixIcon></span>
-          <div><div className="vh-title">Batch {cur.n} passed</div><div className="vh-note">Matrix Commit {commitN} created. The AI coder followed the contract.</div></div>
+        <article className={`val-hero ${heroClass} reveal`}>
+          <span className={`vh-ic ${passed ? "ok" : "bad"}`}><MatrixIcon size={30}>{passed ? icons.check : icons.shield}</MatrixIcon></span>
+          <div><div className="vh-title">{title}</div><div className="vh-note">{note}</div></div>
         </article>
 
         <article className="darkpanel val-info reveal">
           <div className="vi-row"><span className="vi-k"><MatrixIcon size={16}>{icons.cpu}</MatrixIcon>AI coder used</span><span className="vi-v"><span className="vi-chip">{coderEntry.short}</span></span></div>
-          <div className="vi-row"><span className="vi-k"><MatrixIcon size={16}>{icons.check}</MatrixIcon>Validation</span><span className="vi-v"><span className="vi-pass"><MatrixIcon size={14}>{icons.check}</MatrixIcon>Passed</span></span></div>
-          <div className="vi-row"><span className="vi-k"><MatrixIcon size={16}>{icons.bundles}</MatrixIcon>Matrix Commit</span><span className="vi-v mono-chip">{commitN}</span></div>
+          <div className="vi-row"><span className="vi-k"><MatrixIcon size={16}>{icons.check}</MatrixIcon>Validation</span><span className="vi-v">{passed ? <span className="vi-pass"><MatrixIcon size={14}>{icons.check}</MatrixIcon>Passed · {score}/100</span> : <span className="vstate rejected on">{status} · {score}/100</span>}</span></div>
+          <div className="vi-row"><span className="vi-k"><MatrixIcon size={16}>{icons.bundles}</MatrixIcon>Matrix Commit</span><span className="vi-v mono-chip">{passed ? commitId : "—"}</span></div>
         </article>
 
+        {!passed && findings.length > 0 && (
+          <article className="darkpanel val-findings reveal">
+            <div className="vf-h"><MatrixIcon size={16}>{icons.shield}</MatrixIcon>Findings ({findings.length})</div>
+            {findings.map((f) => (
+              <div className="vf-row" key={f.key}>
+                <span className="vf-rule">{f.label}</span>
+                <span className="vf-msg">{f.message}{f.remediation ? ` — ${f.remediation}` : ""}</span>
+              </div>
+            ))}
+          </article>
+        )}
+
+        {/* Optional Internal AI: plain-language helper copy. The status/score/findings above are
+            the deterministic validator's and are never changed by this text. */}
+        {explanation && (
+          <article className="val-ai-explain reveal">
+            <div className="vae-h"><MatrixIcon size={14}>{icons.cpu}</MatrixIcon>AI explanation (assist)</div>
+            {explanation}
+          </article>
+        )}
+
         <div className="val-actions reveal">
-          {isLast
-            ? <button className="bo-btn primary" type="button" onClick={onFinish}><MatrixIcon size={17}>{icons.check}</MatrixIcon>Finish build</button>
-            : <button className="bo-btn primary" type="button" onClick={onContinue}><MatrixIcon size={16}>{icons.plus}</MatrixIcon>Generate Batch {nextN}</button>}
+          {passed
+            ? (isLast
+                ? <button className="bo-btn primary" type="button" onClick={onFinish}><MatrixIcon size={17}>{icons.check}</MatrixIcon>Finish build</button>
+                : <button className="bo-btn primary" type="button" onClick={onContinue}><MatrixIcon size={16}>{icons.plus}</MatrixIcon>Generate Batch {nextN}</button>)
+            : <button className="bo-btn primary" type="button" onClick={onRepair}><MatrixIcon size={16}>{icons.refresh}</MatrixIcon>Fix &amp; resubmit</button>}
           <button className="bo-btn" type="button" onClick={onTimeline}><MatrixIcon size={16}>{icons.clock}</MatrixIcon>View timeline</button>
         </div>
-        {!isLast && <div className="val-tertiary reveal"><button className="val-tlink" type="button" onClick={onFinish}>Finish build early</button></div>}
+        {passed && !isLast && <div className="val-tertiary reveal"><button className="val-tlink" type="button" onClick={onFinish}>Finish build early</button></div>}
       </div>
     </div>
   );
@@ -1054,8 +1271,25 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
   const [idea, setIdea] = useState(initialBuild?.idea ?? "");
   const [scanIndex, setScanIndex] = useState(0);
   const [candidates, setCandidates] = useState<BlueprintCandidate[]>([]);
+  const [candidatesLoaded, setCandidatesLoaded] = useState(false);
+  // Optional Internal AI: display-only copy overrides keyed by candidate id; the deterministic
+  // candidate objects (used for bundle generation) are never mutated. Empty unless assist is on.
+  const [enrichedById, setEnrichedById] = useState<EnrichmentMap>({});
+  // Optional Internal AI: plain-language explanation of the (authoritative) validation result.
+  const [validationExplanation, setValidationExplanation] = useState<string | null>(null);
   const [chosen, setChosen] = useState<BlueprintCandidate | null>(initialBuild?.candidate ?? null);
   const [bundleId, setBundleId] = useState(initialBuild?.bundleId ?? "");
+  // The real engine bundle + its file manifest (what the UI shows / downloads). Generation is async.
+  const [bundle, setBundle] = useState<MatrixBundleContract | null>(null);
+  const [bundleFiles, setBundleFiles] = useState<BundleFile[]>([]);
+  const [bundleLoading, setBundleLoading] = useState(false);
+  const [promptText, setPromptText] = useState("");
+  const [promptLoading, setPromptLoading] = useState(false);
+  // Real validation of a submitted batch (stateless; see workflow-client.validateChanges).
+  const [validation, setValidation] = useState<ValidationReportContract | null>(null);
+  const [validationFailed, setValidationFailed] = useState(false);
+  const [changedFiles, setChangedFiles] = useState<ChangedPath[]>([]);
+  const [commitId, setCommitId] = useState("");
   const [batchIndex, setBatchIndex] = useState(initialBuild?.batchIndex ?? 0);
   const [passed, setPassed] = useState(initialBuild?.passed ?? 0);
   const [coder, setCoder] = useState<CoderId>(initialBuild?.coder ?? "claude-code");
@@ -1078,39 +1312,209 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
     toastTimeoutRef.current = setTimeout(() => setToast(null), 2600);
   };
 
+  // Step 1 — ask the engine to normalize the idea and return its three real candidates. The
+  // scanning screen is the loading state; if the engine is unreachable we fall back to the
+  // deterministic offline generator so the demo still works.
   const generate = () => {
-    setCandidates(createBlueprintCandidates(effectiveIdea));
+    setCandidates([]);
+    setCandidatesLoaded(false);
+    setEnrichedById({});
     setScanIndex(0);
     setPhase("scanning");
     window.scrollTo({ top: 0, behavior: "smooth" });
+    void (async () => {
+      let list: BlueprintCandidate[];
+      try {
+        await parseIdea({ idea: effectiveIdea }).catch(() => undefined); // best-effort normalize
+        const result = await getBlueprintCandidates({ idea: effectiveIdea });
+        list = toUiCandidates(result.candidates);
+      } catch {
+        list = createBlueprintCandidates(effectiveIdea); // offline fallback
+      }
+      setCandidates(list);
+      setCandidatesLoaded(true);
+      // Optional Internal AI assist (fail-open): improve display copy only, after candidates show.
+      void enrichBlueprintCandidates(
+        effectiveIdea,
+        list.map((c) => ({ id: c.id, tier: c.tier, name: c.name, summary: c.summary })),
+      )
+        .then((map) => setEnrichedById(map))
+        .catch(() => undefined);
+    })();
   };
 
   useEffect(() => {
     if (phase !== "scanning") return undefined;
     if (scanIndex >= SCANNING_MESSAGES.length) {
+      // Hold on the last scan message until the engine's candidates have actually arrived.
+      if (!candidatesLoaded) return undefined;
       const timeout = setTimeout(() => setPhase("candidates"), 380);
       return () => clearTimeout(timeout);
     }
     const timeout = setTimeout(() => setScanIndex((current) => current + 1), scanIndex === 0 ? 420 : 360);
     return () => clearTimeout(timeout);
-  }, [phase, scanIndex]);
+  }, [phase, scanIndex, candidatesLoaded]);
 
+  // Step 2 — generate the chosen candidate's Matrix Bundle on the engine (the real file manifest).
   const choose = (candidate: BlueprintCandidate) => {
-    const id = generateBundleId();
+    const localId = generateBundleId();
     setChosen(candidate);
-    setBundleId(id);
     setBatchIndex(0);
     setPassed(0);
-    // Persist immediately so the build is openable from My Builds even before any batch runs.
-    saveBuildProgress({ id, name: candidate.name, description: candidate.summary, files: candidate.files, stack: candidate.stack, coder, passed: 0, status: "draft", idea: effectiveIdea, candidateId: candidate.id });
+    setBundle(null);
+    setBundleFiles([]);
+    setBundleId("");
+    setBundleLoading(true);
     setPhase("bundle");
     window.scrollTo({ top: 0, behavior: "smooth" });
+    void (async () => {
+      let resolvedId = localId;
+      try {
+        const real = await apiGenerateBundle({ idea: effectiveIdea }, coder, candidate.candidate_id);
+        setBundle(real);
+        setBundleFiles(toUiBundleFiles(real));
+        resolvedId = real.bundle_id;
+      } catch {
+        setBundleFiles(createBundleFiles(effectiveIdea, candidate, localId)); // offline fallback
+      } finally {
+        setBundleId(resolvedId);
+        setBundleLoading(false);
+        // Persist so the build is openable from My Builds; the id is the engine's bundle id.
+        saveBuildProgress({ id: resolvedId, name: candidate.name, description: candidate.summary, files: candidate.files, stack: candidate.stack, coder, passed: 0, status: "draft", idea: effectiveIdea, candidateId: candidate.id });
+      }
+    })();
   };
+
+  // Reopened from My Builds: fetch the persisted bundle so the file manifest is the engine's.
+  useEffect(() => {
+    if (!initialBuild) return undefined;
+    let cancelled = false;
+    setBundleLoading(true);
+    void (async () => {
+      try {
+        const real = await getBundle(initialBuild.bundleId);
+        if (!cancelled) {
+          setBundle(real);
+          setBundleFiles(toUiBundleFiles(real));
+        }
+      } catch {
+        if (!cancelled) setBundleFiles(createBundleFiles(initialBuild.idea, initialBuild.candidate, initialBuild.bundleId));
+      } finally {
+        if (!cancelled) setBundleLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialBuild]);
+
+  // The prompt preview is the engine's controlled coder prompt for this bundle; it refetches when
+  // the coder changes. Falls back to the local batch prompt when there's no real bundle (offline).
+  useEffect(() => {
+    if (phase !== "bundle" || !chosen) return undefined;
+    let cancelled = false;
+    setPromptLoading(true);
+    // While the bundle is still generating we have no id yet — keep the skeleton up rather than
+    // flashing the offline fallback; the effect reruns once bundleId resolves.
+    if (!bundleId && bundleLoading) return undefined;
+    void (async () => {
+      let text = "";
+      try {
+        if (!bundleId) throw new Error("no bundle yet");
+        const pack = await getBundlePrompt(bundleId, coder);
+        text = pack.prompt;
+      } catch {
+        const coderEntry = AI_CODERS.find((item) => item.id === coder) ?? AI_CODERS[1];
+        text = batchPrompt(coderEntry.name, chosen.name, STAGES[batchIndex], coder === "generic-ai-coder");
+      }
+      if (!cancelled) {
+        setPromptText(text);
+        setPromptLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, bundleId, coder, chosen, batchIndex, bundleLoading]);
 
   // Record build progress to the signed-in user's private store (localStorage).
   const persistBuild = (passedCount: number, status: BuildStatus) => {
     if (!chosen || !bundleId) return;
     saveBuildProgress({ id: bundleId, name: chosen.name, description: chosen.summary, files: chosen.files, stack: chosen.stack, coder, passed: passedCount, status, idea: effectiveIdea, candidateId: chosen.id });
+  };
+
+  // Save a Blob to disk via a transient anchor (used by the bundle download).
+  const saveBlob = (blob: Blob, filename: string) => {
+    const anchor = document.createElement("a");
+    anchor.href = URL.createObjectURL(blob);
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(anchor.href);
+      anchor.remove();
+    }, 1500);
+  };
+
+  // Download the engine's bundle zip (byte-for-byte the CLI's bundle); fall back to building a zip
+  // from the local manifest only when there's no real engine bundle.
+  const downloadBundle = async () => {
+    if (!chosen) return;
+    if (bundleId && bundle) {
+      try {
+        const blob = await downloadBundleZip(bundleId);
+        saveBlob(blob, `${chosen.name}-matrix-bundle.zip`);
+        showToast("ZIP downloaded — open README.md first");
+        return;
+      } catch {
+        // fall through to the offline zip below
+      }
+    }
+    const files = bundleFiles.length ? bundleFiles : createBundleFiles(effectiveIdea, chosen, bundleId);
+    saveBlob(makeZip(files), `${chosen.name}-matrix-bundle.zip`);
+    showToast("ZIP downloaded — open README.md first");
+  };
+
+  // In-scope source/test files from the engine's manifest — the default change set to validate when
+  // the user doesn't paste explicit paths (keeps the hello-world demo a one-click pass).
+  const ALLOWED_ROOTS = ["frontend/", "backend/", "worker/", "tests/"];
+  const fallbackFiles = (() => {
+    const candidates = bundleFiles
+      .map((f) => f.name)
+      .filter((name) => ALLOWED_ROOTS.some((root) => name.startsWith(root)) && !name.split("/").pop()?.startsWith("MATRIX_"));
+    return candidates.slice(0, 3).length ? candidates.slice(0, 3) : ["backend/app/main.py"];
+  })();
+
+  // "Check AI output" — validate the submitted changes against the contract (real findings),
+  // stream the run, then show the Validation Result.
+  const runValidation = (changed: ChangedPath[]) => {
+    setChangedFiles(changed);
+    setValidation(null);
+    setValidationFailed(false);
+    setValidationExplanation(null);
+    setCommitId("");
+    goPhase("running");
+    void (async () => {
+      try {
+        const report = await validateChanges(bundleId, changed);
+        setValidation(report);
+        if (report.status === "approved") setCommitId(deriveCommitId(report));
+        // Optional Internal AI assist (fail-open): explain the deterministic result in plain words.
+        // The status/score/findings shown to the user always come from the validator above.
+        void explainValidationFindings({
+          status: report.status,
+          score: report.score ?? 0,
+          findings: [
+            ...(report.violations ?? []).map((v) => ({ label: v.rule_id, message: v.message })),
+            ...(report.checks ?? []).filter((c) => c.status === "failed").map((c) => ({ label: c.check_id, message: c.message ?? "Check failed." })),
+          ],
+        })
+          .then((text) => setValidationExplanation(text))
+          .catch(() => undefined);
+      } catch {
+        setValidationFailed(true);
+      }
+    })();
   };
 
   const goPhase = (next: Phase) => {
@@ -1130,8 +1534,6 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
     if (initialBuild) router.push("/matrix-builder");
     else reset();
   };
-
-  const files = chosen ? createBundleFiles(effectiveIdea, chosen, bundleId) : [];
 
   return (
     <div className={`app${animationSafe ? " anim-safe" : ""}`}>
@@ -1160,7 +1562,7 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
               <p className="mb-sub">Every candidate ships with locked standards and a build contract. Pick the one that fits your scope.</p>
             </div>
             <div className="cand-grid stag">
-              {candidates.map((candidate) => <CandidateCard key={candidate.id} candidate={candidate} choose={choose} />)}
+              {candidates.map((candidate) => <CandidateCard key={candidate.id} candidate={candidate} choose={choose} enrichment={enrichedById[candidate.id]} />)}
             </div>
           </div>
         </>
@@ -1172,22 +1574,40 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
           batchIndex={batchIndex}
           coder={coder}
           setCoder={setCoder}
-          files={files}
+          prompt={promptText}
+          promptLoading={promptLoading}
+          bundleLoading={bundleLoading}
+          fileCount={bundleFiles.length}
           showToast={showToast}
           onNew={startNewBuild}
           onMyBuilds={() => router.push("/matrix-builder/builds")}
           onSubmit={() => goPhase("submit")}
           onTimeline={() => goPhase("timeline")}
+          onDownload={() => void downloadBundle()}
         />
       )}
 
       {phase === "submit" && chosen && (
         <SubmitResult
           batchIndex={batchIndex}
+          fallbackFiles={fallbackFiles}
           showToast={showToast}
           onNew={startNewBuild}
           onBack={() => goPhase("bundle")}
-          onValidate={() => goPhase("validation")}
+          onValidate={runValidation}
+        />
+      )}
+
+      {phase === "running" && chosen && (
+        <RunLog
+          report={validation}
+          failed={validationFailed}
+          coder={coder}
+          batchN={STAGES[batchIndex].n}
+          changedCount={changedFiles.length}
+          showToast={showToast}
+          onNew={startNewBuild}
+          onComplete={() => goPhase("validation")}
         />
       )}
 
@@ -1195,15 +1615,19 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
         <ValidationResult
           batchIndex={batchIndex}
           coder={coder}
+          report={validation}
+          commitId={commitId}
+          explanation={validationExplanation}
           showToast={showToast}
           onNew={startNewBuild}
           onBack={() => goPhase("submit")}
           onTimeline={() => goPhase("timeline")}
+          onRepair={() => goPhase("submit")}
           onContinue={() => {
             const next = batchIndex + 1;
             setPassed(next);
             persistBuild(next, "ready");
-            showToast(`Batch ${STAGES[batchIndex].n} passed — Matrix Commit #0${STAGES[batchIndex].n}`);
+            showToast(`Batch ${STAGES[batchIndex].n} passed — Matrix Commit ${commitId}`);
             setBatchIndex(Math.min(next, STAGES.length - 1));
             goPhase("bundle");
           }}

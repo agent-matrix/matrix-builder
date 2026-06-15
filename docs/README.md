@@ -23,6 +23,8 @@ The documentation is organized around the developer journey:
 | `user-experience.md` | Simple end-user flow and mental model |
 | `api-reference.md` | Backend API routes and example requests |
 | `bundle-service.md` | Matrix Bundle model, ZIPs, signed URLs, expiration, quotas |
+| `ai-ownership.md` | Where AI is allowed: deterministic vs internal AI vs external AI coder |
+| `ollabridge-internal-ai.md` | Optional Internal AI (OllaBridge) settings, pairing, and display-only assist |
 | `ai-coder-contract.md` | The contract that keeps AI coders controlled |
 | `ai-coder-prompt-system.md` | Prompt adapters for Claude Code, Codex / ChatGPT, GitPilot, IBM Bob, Cursor, generic |
 | `validation-flow.md` | Approved / needs-repair / rejected control loop |

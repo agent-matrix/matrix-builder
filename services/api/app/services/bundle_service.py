@@ -78,11 +78,16 @@ class BundleStore:
         preferred_coder: CoderId,
         persist: bool = False,
         owner_id: str | None = None,
+        engine_files: dict[str, bytes] | None = None,
     ) -> MatrixBundle:
         now = utc_now()
         ttl = self.settings.free_bundle_ttl_seconds if persist else self.settings.guest_bundle_ttl_seconds
         expires_at = now + timedelta(seconds=ttl)
-        files_content = self._render_bundle_files(bundle, blueprint, preferred_coder)
+        # When the real engine compiled the bundle, write its bytes verbatim (byte-for-byte the
+        # CLI's bundle, including its own artifacts/manifest.json + checksums + SBOM). Only the
+        # deterministic dev render needs the store to synthesize checksums/manifest itself.
+        engine_sourced = engine_files is not None
+        files_content = engine_files if engine_sourced else self._render_bundle_files(bundle, blueprint, preferred_coder)
         content_root = content_dir(bundle.bundle_id)
         if content_root.exists():
             shutil.rmtree(content_root)
@@ -108,10 +113,13 @@ class BundleStore:
                 )
             )
 
-        checksums_text = "\n".join(f"{digest}  {path}" for path, digest in sorted(checksums.items())) + "\n"
-        (content_root / "artifacts" / "checksums.txt").write_text(checksums_text, encoding="utf-8")
-        checksums["artifacts/checksums.txt"] = sha256_text(checksums_text)
-        _upsert_file_record(file_records, "artifacts/checksums.txt", "artifact", "text/plain", checksums_text.encode("utf-8"))
+        # The dev render leaves checksums/manifest as placeholders for the store to fill; the engine
+        # bundle already ships authoritative ones, so we must not overwrite its bytes.
+        if not engine_sourced:
+            checksums_text = "\n".join(f"{digest}  {path}" for path, digest in sorted(checksums.items())) + "\n"
+            (content_root / "artifacts" / "checksums.txt").write_text(checksums_text, encoding="utf-8")
+            checksums["artifacts/checksums.txt"] = sha256_text(checksums_text)
+            _upsert_file_record(file_records, "artifacts/checksums.txt", "artifact", "text/plain", checksums_text.encode("utf-8"))
 
         zip_file = zip_path(bundle.bundle_id)
         self._write_zip(content_root, zip_file)
@@ -154,7 +162,10 @@ class BundleStore:
         )
         manifest_json = manifest.model_dump_json(indent=2)
         manifest_path(bundle.bundle_id).write_text(manifest_json, encoding="utf-8")
-        (content_root / "artifacts" / "manifest.json").write_text(manifest_json, encoding="utf-8")
+        # Keep the engine's own artifacts/manifest.json inside the bundle; only the dev render
+        # mirrors the store manifest into the content root.
+        if not engine_sourced:
+            (content_root / "artifacts" / "manifest.json").write_text(manifest_json, encoding="utf-8")
 
         bundle.created_at = now
         bundle.expires_at = expires_at

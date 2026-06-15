@@ -239,6 +239,24 @@ frontend.
 | `mb login` / `mb sync` | Authenticate and sync local ↔ server |
 | `mb mcp` | Expose the build loop as MCP tools |
 
+## Reproduce the CLI tour (with OllaBridge as the AI coder)
+
+[`scripts/mb_ollabridge_cli_demo.py`](../scripts/mb_ollabridge_cli_demo.py) reproduces the
+["free cloud LLM" section](https://ruslanmv.com/matrix-builder-cli/) end to end: it drives
+`mb init → next → prompt → check → timeline` and uses OllaBridge (`qwen2.5:1.5b`, no API key beyond
+a device token) for the one step that leaves the machine — writing the allowed files. Planning,
+validation, and committing stay local and deterministic.
+
+```bash
+OLLABRIDGE_TOKEN=<paired token>  python3 scripts/mb_ollabridge_cli_demo.py
+# or pair inline:  OLLABRIDGE_PAIR_CODE=ABCD-1234  python3 scripts/mb_ollabridge_cli_demo.py
+```
+
+It asserts the same outcomes the blog shows — `mb check` on the allowed files → `approved`
+(exit 0, a Matrix Commit), and `mb check MATRIX_BLUEPRINT.yaml` → `rejected` (exit 2). Token is read
+from the env only; with no credential it skips cleanly (CI-friendly). The deterministic-only loop
+(no OllaBridge) is covered by [`scripts/mb_cli_demo.sh`](../scripts/mb_cli_demo.sh).
+
 See also: [`e2e-quality-check.md`](./e2e-quality-check.md) (cross-service health),
 [`api-reference.md`](./api-reference.md) (full HTTP surface),
 [`ai-coder-contract.md`](./ai-coder-contract.md) (the contract model).

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { apiBaseUrl } from "@/lib/api-client";
 import { AUTH_EVENT, authHeaders, clearSession, getAuthToken, getUser, setSession, type AuthUser } from "@/lib/auth-token";
+import { clearAISettings } from "@/lib/ai-settings-store";
+import AiConfigurationSection from "@/components/settings/AiConfigurationSection";
 
 const ENV_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 const GIS_SRC = "https://accounts.google.com/gsi/client";
@@ -219,6 +221,7 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
       const res = await fetch(`${apiBaseUrl}/api/v1/auth/account`, { method: "DELETE", headers: { ...authHeaders() } });
       if (!res.ok) throw new Error(await detail(res, "Couldn't delete your account. Please try again."));
       clearSession();
+      clearAISettings(); // browser-local AI provider settings are part of "your data"
       setConfirmDelete(false); setMenuOpen(false); setDelText("");
       onNotice?.("Your account and data have been deleted.");
     } catch (e) { setDelError(e instanceof Error ? e.message : "Delete failed."); }
@@ -358,6 +361,9 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
                   <span className="settings-badge muted">Active</span>
                 </div>
               </section>
+
+              {/* System Configuration — optional Internal AI (OllaBridge) */}
+              <AiConfigurationSection />
 
               {/* Danger zone */}
               <section className="settings-danger-zone">
