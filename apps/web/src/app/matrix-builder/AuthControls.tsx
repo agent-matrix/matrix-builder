@@ -1,11 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { apiBaseUrl } from "@/lib/api-client";
 import { AUTH_EVENT, authHeaders, clearSession, getAuthToken, getUser, setSession, type AuthUser } from "@/lib/auth-token";
 import { clearAISettings } from "@/lib/ai-settings-store";
 import AiConfigurationSection from "@/components/settings/AiConfigurationSection";
+
+// Render modal overlays at <body> so their position:fixed is relative to the viewport.
+// The Matrix Builder header (.mb-detail-bar) uses backdrop-filter, which makes it the containing
+// block for fixed descendants — without this portal the modal would center on the header box, not
+// the screen (the reported "modal not centered" bug). SSR-safe via the mounted guard.
+function Portal({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted || typeof document === "undefined") return null;
+  return createPortal(children, document.body);
+}
 
 const ENV_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 const GIS_SRC = "https://accounts.google.com/gsi/client";
@@ -294,6 +306,7 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
         )}
 
         {settingsOpen && (
+          <Portal>
           <div className="auth-scrim" role="dialog" aria-modal="true" aria-label="Settings" onMouseDown={(e) => { if (e.target === e.currentTarget) setSettingsOpen(false); }}>
             <div className="settings-card">
               <button className="auth-x" type="button" aria-label="Close" onClick={() => setSettingsOpen(false)}><Ic d={<path d="M6 6l12 12M18 6L6 18" />} size={16} /></button>
@@ -376,9 +389,11 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
               </section>
             </div>
           </div>
+          </Portal>
         )}
 
         {confirmDelete && (
+          <Portal>
           <div className="auth-scrim" role="dialog" aria-modal="true" aria-label="Delete account" onMouseDown={(e) => { if (e.target === e.currentTarget) setConfirmDelete(false); }}>
             <div className="auth-card">
               <button className="auth-x" type="button" aria-label="Close" onClick={() => setConfirmDelete(false)}><Ic d={<path d="M6 6l12 12M18 6L6 18" />} size={16} /></button>
@@ -392,6 +407,7 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
               <button className="auth-ghost" type="button" onClick={() => setConfirmDelete(false)}>Cancel</button>
             </div>
           </div>
+          </Portal>
         )}
       </span>
     );
@@ -404,6 +420,7 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
     <>
       <button className="l-signin" type="button" onClick={openModal}>Sign in</button>
       {open && (
+        <Portal>
         <div className="auth-scrim" role="dialog" aria-modal="true" aria-label="Account" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
           <div className="auth-card">
             <button className="auth-x" type="button" aria-label="Close" onClick={() => setOpen(false)}><Ic d={<path d="M6 6l12 12M18 6L6 18" />} size={16} /></button>
@@ -487,6 +504,7 @@ export default function AuthControls({ onNotice }: { onNotice?: (m: string) => v
             )}
           </div>
         </div>
+        </Portal>
       )}
     </>
   );

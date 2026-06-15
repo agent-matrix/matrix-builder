@@ -28,11 +28,16 @@ import {
   stripTrailingSlash,
 } from "@/lib/ollabridge-client";
 import {
+  briefToIdea,
+  enhanceProjectBrief,
   enrichBlueprintCandidates,
   explainValidationFindings,
   isAssistEnabled,
+  isOllaBridgeAssistAvailable,
+  sanitizeBrief,
   sanitizeEnrichment,
 } from "@/lib/ai-provider-manager";
+import type { ProjectBriefContract } from "@/lib/workflow-types";
 
 // --- A tiny window/localStorage shim so the store + manager run under node --test --------------
 
@@ -251,5 +256,72 @@ describe("ai-provider-manager gating", () => {
     const out = await explainValidationFindings({ status: "rejected", score: 65, findings });
     assert.equal(out, "Looks good. Ship it.");
     assert.deepEqual(findings, [{ label: "RMD-103", message: "forbidden file" }]); // unchanged
+  });
+});
+
+// --- Batch 7 — ProjectBrief enhancement (Seam 1) ----------------------------------------------
+
+const BASE_BRIEF: ProjectBriefContract = {
+  schema_version: "matrix.builder.brief/v1",
+  source_type: "document",
+  title: "Doc QA",
+  summary: "original summary",
+  domain: null,
+  goals: ["original goal"],
+  users: [],
+  features: ["original feature"],
+  screens: [],
+  integrations: [],
+  constraints: [],
+  risks: [],
+  non_functional: [],
+  source_files: ["brief.pdf"],
+  enhanced_by: "deterministic",
+};
+
+describe("Batch 7 — brief enhancement", () => {
+  it("sanitizeBrief discards when title/summary missing", () => {
+    assert.equal(sanitizeBrief(BASE_BRIEF, { confidence: 0.9 }).enhanced_by, "deterministic");
+  });
+
+  it("sanitizeBrief discards when confidence below 0.65", () => {
+    const out = sanitizeBrief(BASE_BRIEF, { title: "X", summary: "Y", confidence: 0.4 });
+    assert.equal(out.enhanced_by, "deterministic");
+    assert.equal(out.title, "Doc QA");
+  });
+
+  it("sanitizeBrief applies only safe fields when valid + confident", () => {
+    const out = sanitizeBrief(BASE_BRIEF, {
+      title: "Better Title", summary: "Better summary", features: ["a", "b"],
+      confidence: 0.82, source_type: "design", enhanced_by: "ollabridge", evil: "ignored",
+    });
+    assert.equal(out.enhanced_by, "ollabridge");
+    assert.equal(out.title, "Better Title");
+    assert.deepEqual(out.features, ["a", "b"]);
+    assert.equal(out.source_type, "document"); // AI cannot change the source type
+    assert.equal((out as Record<string, unknown>).evil, undefined);
+  });
+
+  it("isOllaBridgeAssistAvailable is false when signed out (even with OllaBridge enabled)", () => {
+    setSettings({ provider: "ollabridge", mode: "assisted" });
+    assert.equal(isOllaBridgeAssistAvailable(), false);
+  });
+
+  it("isOllaBridgeAssistAvailable is true when signed in + OllaBridge assisted", () => {
+    setSettings({ provider: "ollabridge", mode: "assisted" });
+    window.localStorage.setItem("mb_user", JSON.stringify({ email: "a@b.c" }));
+    assert.equal(isOllaBridgeAssistAvailable(), true);
+  });
+
+  it("enhanceProjectBrief returns the deterministic brief (no AI call) when assist unavailable", async () => {
+    stubFetch(() => { throw new Error("fetch must not be called when assist is unavailable"); });
+    const out = await enhanceProjectBrief(BASE_BRIEF); // signed out by default
+    assert.equal(out.enhanced_by, "deterministic");
+  });
+
+  it("briefToIdea folds title + summary + features", () => {
+    const idea = briefToIdea({ title: "Doc QA", summary: "answers with citations", features: ["upload", "search"] });
+    assert.match(idea, /Doc QA/);
+    assert.match(idea, /upload/);
   });
 });

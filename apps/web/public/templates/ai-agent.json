@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "template_id": "ai-agent",
+  "name": "AI Agent",
+  "summary": "Generic controlled AI agent with tools, task execution, memory hooks, and validation boundaries.",
+  "source_type": "template",
+  "goals": [
+    "Run controlled agent tasks with tools",
+    "Keep memory and actions within boundaries",
+    "Validate every step against the contract"
+  ],
+  "users": [
+    "operator",
+    "reviewer"
+  ],
+  "features": [
+    "tool use",
+    "task execution",
+    "memory hooks",
+    "validation boundaries",
+    "audit-friendly events"
+  ],
+  "suggested_stack": [
+    "Next.js",
+    "FastAPI",
+    "PostgreSQL"
+  ],
+  "non_functional_requirements": [
+    "testable architecture",
+    "clear API boundaries",
+    "basic observability",
+    "secure defaults"
+  ],
+  "validation_focus": [
+    "required files present",
+    "allowed changes only",
+    "no dependency drift",
+    "tests pass"
+  ]
+}

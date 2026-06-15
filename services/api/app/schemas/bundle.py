@@ -4,14 +4,18 @@ from datetime import datetime
 
 from pydantic import Field
 
+from app.schemas.blueprint import BlueprintResult
 from app.schemas.common import BundleFile, BundleStatus, CoderId, JsonDict, StrictModel, ValidationStatus
 from app.schemas.idea import IdeaRequest
 
 
 class BundleGenerationRequest(StrictModel):
     schema_version: str = "matrix.builder.bundle-generation/v1"
-    idea_request: IdeaRequest
+    # Either generate from an idea (normal flow) or compile a user-provided blueprint (skip-AI path).
+    idea_request: IdeaRequest | None = None
     candidate_id: str | None = None
+    # Path C: a complete, validated blueprint to compile verbatim (AI skipped).
+    blueprint: BlueprintResult | None = None
     preferred_coder: CoderId = CoderId.GENERIC_AI_CODER
     persist: bool = False
     account_id: str | None = None

@@ -18,12 +18,14 @@ import type {
 import type {
   ArtifactResponse,
   BatchResponse,
+  BlueprintImportResponse,
   ChangeType,
   CommitDiffResponse,
   CommitResponse,
   ExecutionRequest,
   ExecutionResponse,
   IdeaIntentResponse,
+  IngestDocumentResponse,
   ProjectCreate,
   ProjectResponse,
   PromptPackResponse,
@@ -203,6 +205,39 @@ export function generateBundle(
     preferred_coder: preferredCoder,
     ...(candidateId ? { candidate_id: candidateId } : {}),
   });
+}
+
+// --- Import existing plan: brief upload (Path B) and Blueprint JSON (Path C, skip-AI) ----------
+
+// Upload a PDF/DOCX/Markdown/TXT brief; returns a deterministic ProjectBrief + a derived idea.
+export async function ingestDocument(file: File): Promise<IngestDocumentResponse> {
+  const form = new FormData();
+  form.append("file", file);
+  // No content-type header: the browser sets the multipart boundary.
+  const response = await fetch(`${apiBaseUrl}/api/v1/ingest/document`, {
+    method: "POST",
+    headers: { ...authHeaders() },
+    body: form,
+  });
+  if (!response.ok) {
+    let detail = `Upload failed (${response.status})`;
+    try { const b = (await response.json()) as { detail?: string }; if (b?.detail) detail = b.detail; } catch { /* keep default */ }
+    throw new WorkflowApiError(response.status, detail);
+  }
+  return (await response.json()) as IngestDocumentResponse;
+}
+
+// Validate a complete Blueprint JSON against the contract (no AI). valid=false carries errors.
+export function importBlueprint(blueprint: unknown): Promise<BlueprintImportResponse> {
+  return post(`/api/v1/ingest/blueprint`, { blueprint });
+}
+
+// Compile a validated blueprint verbatim into a Matrix Bundle — AI skipped.
+export function generateBundleFromBlueprint(
+  blueprint: unknown,
+  preferredCoder: ContractCoderId,
+): Promise<MatrixBundleContract> {
+  return post(`/api/v1/bundles`, { blueprint, preferred_coder: preferredCoder });
 }
 
 export function getBundle(bundleId: string): Promise<MatrixBundleContract> {

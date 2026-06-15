@@ -26,6 +26,7 @@ from app.integrations.drift_detection_adapter import DriftDetectionAdapter
 from app.integrations.matrixhub_client import MatrixHubClient
 from app.services.bundle_service import BundleStore, get_mock_bundle
 from app.services.quota_service import QuotaService
+from app.services.signed_url_service import SignedUrlService
 
 
 @dataclass
@@ -73,10 +74,17 @@ class MatrixBuilderService:
             self.quota_service.consume_guest("guest")
         elif payload.persist and self.quota_service is not None:
             self.quota_service.consume_free(payload.account_id or "free-account")
-        blueprint = self.agent_generator.generate_controlled_blueprint(
-            payload.idea_request,
-            candidate_id=payload.candidate_id,
-        )
+        # Path C — a complete user blueprint is the source of truth: skip AI generation entirely
+        # and compile it verbatim. Otherwise generate the blueprint from the idea (normal flow).
+        if payload.blueprint is not None:
+            blueprint = payload.blueprint
+        else:
+            if payload.idea_request is None:
+                raise ValueError("Either idea_request or blueprint must be provided.")
+            blueprint = self.agent_generator.generate_controlled_blueprint(
+                payload.idea_request,
+                candidate_id=payload.candidate_id,
+            )
         bundle = self.agent_generator.generate_matrix_bundle(
             blueprint,
             preferred_coder=payload.preferred_coder,
@@ -133,6 +141,12 @@ class MatrixBuilderService:
         coder: CoderId | str,
         bundle_url: str | None = None,
     ) -> PromptResponse:
+        # The prompt instructs the AI coder to fetch the bundle. External coders (Claude Code, etc.)
+        # need a full, public, fetchable URL — not a relative path. When the caller didn't supply
+        # one, mint a signed, time-limited download URL (absolute, owner-independent), the same shape
+        # Claude's design handoff uses. The engine/mock embed this verbatim in the "Fetch …" line.
+        if bundle_url is None:
+            bundle_url = SignedUrlService().sign_download_url(bundle_id).url
         return self.agent_generator.generate_coder_prompt(bundle_id=bundle_id, coder=coder, bundle_url=bundle_url)
 
     def validate_bundle(

@@ -28,6 +28,14 @@ export type SavedBuild = {
 const PREFIX = "mb:builds:v1:";
 export const BUILDS_EVENT = "mb-builds-changed";
 
+// The old seeded demo builds (former SAVED_BUNDLES) were written into browsers' localStorage by
+// earlier versions. Phase 5 stopped seeding, but existing browsers still carry them — purge these
+// exact ids on read so My Builds shows only the user's real builds. Real builds never use these ids.
+const LEGACY_DEMO_IDS = new Set([
+  "mb_2h90dkp9h4", "mb_docqa771a2", "mb_portf93kk1", "mb_cbexp4a8c2",
+  "mb_apispec55d", "mb_relnotes19", "mb_secrev7c30", "mb_onbgd6f1aa",
+]);
+
 function userKey(): string {
   const email = getUser()?.email?.trim().toLowerCase();
   return email ? `user:${email}` : "guest";
@@ -43,7 +51,14 @@ function read(): SavedBuild[] | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as SavedBuild[]) : null;
+    if (!Array.isArray(parsed)) return null;
+    const list = parsed as SavedBuild[];
+    const cleaned = list.filter((b) => !LEGACY_DEMO_IDS.has(b.id));
+    if (cleaned.length !== list.length) {
+      // Drop the legacy demos from storage for good (one-time, on first read after upgrade).
+      window.localStorage.setItem(storageKey(), JSON.stringify(cleaned));
+    }
+    return cleaned;
   } catch {
     return null;
   }

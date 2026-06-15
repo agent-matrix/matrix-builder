@@ -6,12 +6,18 @@
 fastapi>=0.115
 uvicorn[standard]>=0.32
 pydantic>=2.8
+python-multipart>=0.0.9   # multipart/form-data uploads (brief/blueprint ingest)
 
 # --- the generation/validation engine (real, not mock) ---
 # Matrix Builder orchestrates; agent-generator generates. With AGENT_GENERATOR_MODE=sdk
 # the adapter loads agent_generator.engine.AgentGenerator instead of fabricating results.
 # 0.2.0 is the release that satisfies the matrix-definitions compatibility gate (>=0.2.0).
 agent-generator>=0.2.0
+
+# --- lightweight document extraction (Path B: PDF/DOCX brief → markdown) ---
+# Pure-Python, no ML/torch (Docling was rejected as too heavy for cpu-basic). Runs in-process.
+pypdf>=5.0
+python-docx>=1.1
 
 # --- persistence (Aiven Postgres + RLS + self-issued JWT) ---
 sqlalchemy>=2.0

@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "template_id": "user-portal",
+  "name": "User Portal",
+  "summary": "Generic secure portal for files, messages, status tracking, and shared resources.",
+  "source_type": "template",
+  "goals": [
+    "Give users a secure self-service portal",
+    "Share files, messages, and status",
+    "Keep access controlled and audit-friendly"
+  ],
+  "users": [
+    "client",
+    "staff",
+    "admin"
+  ],
+  "features": [
+    "secure files",
+    "messages",
+    "status tracking",
+    "shared resources",
+    "role-based access"
+  ],
+  "suggested_stack": [
+    "Next.js",
+    "FastAPI",
+    "PostgreSQL"
+  ],
+  "non_functional_requirements": [
+    "testable architecture",
+    "clear API boundaries",
+    "basic observability",
+    "secure defaults"
+  ],
+  "validation_focus": [
+    "required files present",
+    "allowed changes only",
+    "no dependency drift",
+    "tests pass"
+  ]
+}

@@ -388,9 +388,13 @@ class AgentGeneratorAdapter:
     ) -> PromptResponse:
         coder_id = normalize_prompt_coder(coder)
         if self._engine and hasattr(self._engine, "generate_coder_prompt_pack"):
+            # Forward the (signed, public) bundle_url so the engine embeds a fetchable URL in the
+            # "Fetch the Matrix Bundle first: GET <url>" line instead of a relative path.
             return _coerce(
                 PromptResponse,
-                self._engine.generate_coder_prompt_pack(bundle_id=bundle_id, coder=coder_id),
+                self._engine.generate_coder_prompt_pack(
+                    bundle_id=bundle_id, coder=coder_id, bundle_url=bundle_url
+                ),
             )
 
         return build_prompt_response(bundle_id=bundle_id, coder=coder_id, bundle_url=bundle_url)

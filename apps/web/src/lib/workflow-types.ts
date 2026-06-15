@@ -216,3 +216,39 @@ export const CHANGE_TYPES: { id: ChangeType; label: string; hint: string }[] = [
   { id: "add-feature", label: "Add feature", hint: "A new capability, scoped to one batch." },
   { id: "fix-issue", label: "Fix issue", hint: "Repair behaviour without changing the contract." },
 ];
+
+// --- Import existing plan (Batches 3–5): document brief + blueprint JSON ---
+export type ProjectBriefContract = {
+  schema_version: string;
+  source_type: "idea" | "document" | "design" | "template";
+  title: string;
+  summary: string;
+  domain?: string | null;
+  goals: string[];
+  users: string[];
+  features: string[];
+  screens: string[];
+  integrations: string[];
+  constraints: string[];
+  risks: string[];
+  non_functional: string[];
+  source_files: string[];
+  enhanced_by: "deterministic" | "ollabridge";
+  // Optional, set only when OllaBridge enhances the brief (Batch 7, Seam 1).
+  missingQuestions?: string[];
+  confidence?: number;
+};
+
+export type IngestDocumentResponse = {
+  source_type: string;
+  filename: string;
+  markdown: string;
+  brief: ProjectBriefContract;
+  idea: string;
+};
+
+export type BlueprintImportResponse = {
+  valid: boolean;
+  errors: string[];
+  blueprint: unknown | null;
+};
