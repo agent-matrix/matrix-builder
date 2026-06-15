@@ -9,6 +9,9 @@
 
 import { useEffect, useState } from "react";
 import { getAISettings, saveAISettings } from "@/lib/ai-settings-store";
+import { getDefaultCoder, setDefaultCoder } from "@/lib/default-coder-store";
+import { AI_CODERS } from "@/lib/constants";
+import type { CoderId } from "@/types/coder";
 import {
   assertRootBaseUrl,
   fetchOllaBridgeModels,
@@ -37,13 +40,22 @@ export default function AiConfigurationSection() {
   const [pairNote, setPairNote] = useState<Note>(null);
   const [modelNote, setModelNote] = useState<Note>(null);
   const [saveNote, setSaveNote] = useState<Note>(null);
+  // Default AI coder preference. "" = None (no override).
+  const [defaultCoder, setDefaultCoderDraft] = useState<CoderId | "">("");
 
   useEffect(() => {
     const s = getAISettings();
     setSettings(s);
     setHasSavedKey(Boolean(s.ollabridge.apiKey));
     setHasPairToken(Boolean(s.ollabridge.pairToken));
+    setDefaultCoderDraft(getDefaultCoder() ?? "");
   }, []);
+
+  function onDefaultCoderChange(value: string) {
+    const next = (value || null) as CoderId | null;
+    setDefaultCoderDraft((next ?? "") as CoderId | "");
+    setDefaultCoder(next);
+  }
 
   const ob = settings.ollabridge;
   const localhost = isLocalhostLike(ob.baseUrl);
@@ -143,6 +155,18 @@ export default function AiConfigurationSection() {
       <div className="settings-section-head">
         <h3>System Configuration</h3>
         <p>Optional Internal AI assist. OllaBridge can improve explanations and candidate wording, but it cannot change the Matrix contract.</p>
+      </div>
+
+      {/* Default AI coder — which coder new builds preselect. None = no override. */}
+      <div className="settings-field-group">
+        <span className="settings-label">Default AI coder</span>
+        <select className="settings-input" value={defaultCoder} onChange={(e) => onDefaultCoderChange(e.target.value)}>
+          <option value="">None</option>
+          {AI_CODERS.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+        <p className="settings-hint">New builds start on this coder. Default is None.</p>
       </div>
 
       {/* Provider */}

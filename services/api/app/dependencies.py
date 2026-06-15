@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.db.engine import session_scope
 from app.integrations.agent_generator_adapter import AgentGeneratorAdapter
 from app.integrations.matrix_definitions_client import MatrixDefinitionsClient
+from app.services.gitpilot_run_service import GitPilotRunService
 from app.services.matrix_builder_service import MatrixBuilderService
 from app.services.workflow_service import WorkflowService
 
@@ -32,6 +33,11 @@ def get_matrix_builder_service() -> MatrixBuilderService:
         agent_generator=get_agent_generator_adapter(),
         matrix_definitions=get_matrix_definitions_client(),
     )
+
+
+def get_gitpilot_run_service() -> GitPilotRunService:
+    # Not cached: reads current settings so mode/secret/base_url stay live.
+    return GitPilotRunService()
 
 
 def get_db_session(user_id: str = Depends(current_user_id)) -> Iterator[Session]:

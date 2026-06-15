@@ -48,6 +48,10 @@ Describe an idea  →  Matrix Bundle (the contract)  →  your AI coder builds i
 Each gets a contract‑bound prompt and a tool‑native rules file (e.g. GitPilot reads `.gitpilotrules`),
 so it builds inside the contract — no per‑tool integration work.
 
+**GitPilot is Matrix‑native:** Matrix Builder hands it the signed bundle, syncs the diff/tests,
+validates the result, and gates the commit/PR on a Matrix‑approved verdict (with a repair loop).
+See [`docs/gitpilot-integration.md`](docs/gitpilot-integration.md) — or run `scripts/gitpilot_demo.sh`.
+
 ## How it works
 
 1. **Describe** — one sentence of intent. Get three controlled blueprint candidates.

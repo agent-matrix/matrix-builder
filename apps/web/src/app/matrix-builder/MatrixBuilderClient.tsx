@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import AuthControls from "./AuthControls";
 import BundleThumbnail from "./BundleThumbnail";
-import { AI_CODERS, IDEA_EXAMPLES, SCANNING_MESSAGES } from "@/lib/constants";
+import { AI_CODERS, DEFAULT_ALLOWED_FILES, DEFAULT_VALIDATION_COMMANDS, IDEA_EXAMPLES, MATRIX_CONTRACT_FILES, SCANNING_MESSAGES } from "@/lib/constants";
 import { STAGES, timelineBatches, type Stage } from "@/lib/build-batches";
 import { saveBuildProgress } from "@/lib/builds-store";
 import { type BuildStatus } from "@/lib/saved-bundles";
@@ -26,7 +26,26 @@ import {
   validateChanges,
 } from "@/lib/workflow-client";
 import { fetchTemplate, templateToIdea, type TemplateId } from "@/lib/templates";
-import { CODER_ACTIONS } from "@/lib/coder-actions";
+import { CODER_ACTIONS, type CoderAction } from "@/lib/coder-actions";
+import { bundleUrl } from "@/lib/coder-prompts";
+import { getDefaultCoder } from "@/lib/default-coder-store";
+import {
+  buildMatrixRunPayload,
+  cloudArtifactUrl,
+  createCloudRun,
+  fetchDiffText,
+  findingsFromReport,
+  getCloudRun,
+  isCloudRunTerminal,
+  openPr,
+  probeLocalGitPilot,
+  repairCloudRun,
+  sendToLocalGitPilot,
+  validateCloudRun,
+  type CloudRunStatus,
+  type CloudValidationResult,
+} from "@/lib/gitpilot-client";
+import DiffView from "@/components/DiffView";
 import { generateBundleId } from "@/lib/ids";
 import { makeZip } from "@/lib/zip";
 import type { BlueprintCandidate } from "@/types/blueprint";
@@ -772,6 +791,7 @@ function BundleResult({
   promptLoading,
   bundleLoading,
   fileCount,
+  bundleId,
   showToast,
   onNew,
   onMyBuilds,
@@ -787,6 +807,7 @@ function BundleResult({
   promptLoading: boolean;
   bundleLoading: boolean;
   fileCount: number;
+  bundleId: string;
   showToast: (message: string) => void;
   onNew: () => void;
   onMyBuilds: () => void;
@@ -804,13 +825,192 @@ function BundleResult({
   // What we hand the agent = the controlled prompt (it already embeds the signed bundle URL) plus
   // any extra detail the user added.
   const handoffText = () => prompt + (extraDetail.trim() ? `\n\nExtra detail: ${extraDetail.trim()}` : "");
-  const runCoderAction = (a: { label: string; kind: "open" | "copy"; url?: string }) => {
+
+  // Cloud GitPilot run (via the Matrix Builder backend, which signs the bundle
+  // URL and holds the A2A secret — no secrets reach the browser).
+  const [cloudRun, setCloudRun] = useState<CloudRunStatus | null>(null);
+  const [cloudRunId, setCloudRunId] = useState<string | null>(null);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [validation, setValidation] = useState<CloudValidationResult | null>(null);
+  const [gateBusy, setGateBusy] = useState(false);
+  const [diffText, setDiffText] = useState<string | null>(null);
+  const [prUrl, setPrUrl] = useState<string | null>(null);
+
+  // Poll the run until it reaches a terminal state.
+  useEffect(() => {
+    if (!cloudRunId || (cloudRun && isCloudRunTerminal(cloudRun.status))) return;
+    let active = true;
+    const tick = async () => {
+      try {
+        const status = await getCloudRun(cloudRunId);
+        if (active) setCloudRun(status);
+      } catch {
+        /* transient; keep polling */
+      }
+    };
+    void tick();
+    const timer = setInterval(tick, 2000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [cloudRunId, cloudRun]);
+
+  const sendToCloud = async () => {
+    if (!prompt) return;
+    if (!bundleId) {
+      showToast("Bundle is still preparing — try again in a moment.");
+      return;
+    }
+    setCloudBusy(true);
+    try {
+      const result = await createCloudRun(bundleId, {
+        task_id: `TASK-${String(cur.n).padStart(3, "0")}`,
+        prompt: handoffText(),
+        project_name: buildName,
+        allowed_files: [...DEFAULT_ALLOWED_FILES],
+        forbidden_files: [...MATRIX_CONTRACT_FILES],
+        validation_commands: [...DEFAULT_VALIDATION_COMMANDS],
+        mode: "ask",
+      });
+      setValidation(null);
+      setDiffText(null);
+      setPrUrl(null);
+      setCloudRun(null);
+      setCloudRunId(result.run_id);
+      showToast(`GitPilot run created (${result.run_id}) — View run`);
+    } catch {
+      showToast("Couldn't start the GitPilot run. Try again or copy the prompt.");
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  // Batch 7: feed GitPilot's diff into Matrix validation. The verdict — not
+  // GitPilot's tests — decides whether a Matrix Commit is reachable.
+  const validateRun = async () => {
+    if (!cloudRunId || !bundleId) return;
+    setGateBusy(true);
+    try {
+      const result = await validateCloudRun(bundleId, cloudRunId);
+      setValidation(result);
+      const verdict = result.gate.status;
+      showToast(
+        verdict === "approved"
+          ? "Matrix approved — Create Matrix Commit unlocked."
+          : verdict === "rejected"
+            ? "Matrix rejected — commit blocked."
+            : "Matrix needs repair — generate a GitPilot repair.",
+      );
+    } catch {
+      showToast("Matrix validation failed. Try again.");
+    } finally {
+      setGateBusy(false);
+    }
+  };
+
+  // Batch 8: dispatch the findings back to GitPilot for a repair, then poll the
+  // new child run so it can be re-validated inside the same contract.
+  const repairRun = async () => {
+    if (!cloudRunId || !bundleId || !validation) return;
+    setGateBusy(true);
+    try {
+      const child = await repairCloudRun(bundleId, cloudRunId, {
+        validation_findings: findingsFromReport(validation.report),
+        repair_prompt: validation.report.repair_prompt ?? "Fix the Matrix validation findings.",
+        allowed_files: [...DEFAULT_ALLOWED_FILES],
+        forbidden_files: [...MATRIX_CONTRACT_FILES],
+      });
+      setValidation(null);
+      setDiffText(null);
+      setPrUrl(null);
+      setCloudRun(null);
+      setCloudRunId(child.run_id);
+      showToast(`Repair dispatched — new run ${child.run_id}. Matrix re-validates.`);
+    } catch {
+      showToast("Couldn't dispatch the repair. Try again.");
+    } finally {
+      setGateBusy(false);
+    }
+  };
+
+  // Batch 11: review the diff in-browser (dependency-free viewer).
+  const viewDiff = async () => {
+    if (diffText !== null) {
+      setDiffText(null); // toggle closed
+      return;
+    }
+    if (!cloudRun?.diff_url) return;
+    try {
+      setDiffText(await fetchDiffText(cloudRun.diff_url));
+    } catch {
+      showToast("Couldn't load the diff.");
+    }
+  };
+
+  // Batch 11: open a PR — only reachable when Matrix approved (server re-checks).
+  const createPr = async () => {
+    if (!cloudRunId || !bundleId) return;
+    setGateBusy(true);
+    try {
+      const result = await openPr(bundleId, cloudRunId, { title: `Matrix: ${buildName}` });
+      setPrUrl(result.pr_url);
+      showToast(result.pr_url ? "PR opened — view it on GitHub." : "PR flow ran (no repo configured).");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't open the PR.");
+    } finally {
+      setGateBusy(false);
+    }
+  };
+
+  // Send the run to a GitPilot the user runs locally: probe health, then POST.
+  // Matrix Builder stays the architect/judge — GitPilot only implements; it
+  // re-applies the contract guardrails on its side. Fails gracefully if down.
+  const sendToLocal = async () => {
+    if (!prompt) return;
+    if (!bundleId) {
+      showToast("Bundle is still preparing — try again in a moment.");
+      return;
+    }
+    showToast("Checking for local GitPilot…");
+    const up = await probeLocalGitPilot();
+    if (!up) {
+      showToast("Local GitPilot is not running. Open GitPilot or copy the prompt instead.");
+      return;
+    }
+    try {
+      const payload = buildMatrixRunPayload({
+        bundleUrl: bundleUrl(bundleId),
+        projectName: buildName,
+        taskId: `TASK-${String(cur.n).padStart(3, "0")}`,
+        prompt: handoffText(),
+        allowedFiles: DEFAULT_ALLOWED_FILES,
+        forbiddenFiles: MATRIX_CONTRACT_FILES,
+        validationCommands: DEFAULT_VALIDATION_COMMANDS,
+        mode: "ask",
+      });
+      const result = await sendToLocalGitPilot(payload);
+      showToast(`GitPilot run created (${result.run_id}). Matrix validates the result.`);
+    } catch {
+      showToast("Couldn't reach local GitPilot. Open GitPilot or copy the prompt instead.");
+    }
+  };
+
+  const runCoderAction = (a: CoderAction) => {
+    if (a.kind === "cloud") {
+      void sendToCloud();
+      return;
+    }
+    if (a.kind === "local") {
+      void sendToLocal();
+      return;
+    }
     try { void navigator.clipboard?.writeText(handoffText()); } catch { /* clipboard unavailable */ }
     if (a.kind === "open" && a.url) {
-      showToast(`Prompt copied — opening ${coderEntry.short}…`);
+      showToast(a.toast ?? `Prompt copied — opening ${coderEntry.short}…`);
       window.open(a.url, "_blank", "noopener");
     } else {
-      showToast(`Prompt copied — paste it into ${coderEntry.short}`);
+      showToast(a.toast ?? `Prompt copied — paste it into ${coderEntry.short}`);
     }
   };
 
@@ -899,16 +1099,61 @@ function BundleResult({
           <article className="darkpanel br-next reveal">
             <div className="br-next-top"><span className="br-next-ic"><MatrixIcon size={22}>{icons.plug}</MatrixIcon></span><span className="br-next-k">{actions.title}</span></div>
             <div className="br-next-d">{actions.description}</div>
-            <button className="bo-btn primary full" type="button" disabled={promptLoading || !prompt} onClick={() => runCoderAction(actions.primary)}><MatrixIcon size={16}>{actions.primary.kind === "open" ? icons.cpu : icons.copy}</MatrixIcon>{actions.primary.label}</button>
+            <button className="bo-btn primary full" type="button" disabled={promptLoading || !prompt || cloudBusy} onClick={() => runCoderAction(actions.primary)}><MatrixIcon size={16}>{actions.primary.kind === "copy" ? icons.copy : icons.cpu}</MatrixIcon>{cloudBusy && actions.primary.kind === "cloud" ? "Starting GitPilot run…" : actions.primary.label}</button>
             {actions.secondary && (
-              <button className="bo-btn full" type="button" disabled={promptLoading || !prompt} onClick={() => runCoderAction(actions.secondary!)}><MatrixIcon size={16}>{actions.secondary.kind === "open" ? icons.cpu : icons.copy}</MatrixIcon>{actions.secondary.label}</button>
+              <button className="bo-btn full" type="button" disabled={promptLoading || !prompt} onClick={() => runCoderAction(actions.secondary!)}><MatrixIcon size={16}>{actions.secondary.kind === "copy" ? icons.copy : icons.cpu}</MatrixIcon>{actions.secondary.label}</button>
             )}
+            {actions.extra?.map((a) => (
+              <button key={a.label} className="bo-btn full" type="button" disabled={promptLoading || !prompt} onClick={() => runCoderAction(a)}><MatrixIcon size={16}>{a.kind === "copy" ? icons.copy : icons.cpu}</MatrixIcon>{a.label}</button>
+            ))}
             <button className="bo-btn full" type="button" disabled={bundleLoading} onClick={onDownload}><MatrixIcon size={16}>{icons.download}</MatrixIcon>{bundleLoading ? "Preparing bundle…" : `Download ZIP instead (${fileCount})`}</button>
             <details className="br-detail">
               <summary>{actions.detailLabel} (optional)</summary>
               <textarea className="br-detail-ta" rows={3} value={extraDetail} placeholder="e.g. use Tailwind, add a footer, keep it minimal…" onChange={(e) => setExtraDetail(e.target.value)} />
             </details>
           </article>
+          {cloudRunId && (
+            <article className="darkpanel br-next reveal">
+              <div className="br-next-top"><span className="br-next-ic"><MatrixIcon size={20}>{icons.cpu}</MatrixIcon></span><span className="br-next-k">GitPilot run</span></div>
+              <div className="br-next-d">
+                Run <code>{cloudRunId}</code> — <strong>{cloudRun?.status ?? "queued"}</strong>
+                {cloudRun?.test_status && cloudRun.test_status !== "not_run" ? ` · tests: ${cloudRun.test_status}` : ""}
+              </div>
+              {cloudRun?.summary && <div className="br-next-d">{cloudRun.summary}</div>}
+              {cloudRun?.changed_files && cloudRun.changed_files.length > 0 && (
+                <div className="br-next-d">{cloudRun.changed_files.length} file(s): {cloudRun.changed_files.slice(0, 4).join(", ")}</div>
+              )}
+              {cloudRun?.diff_url && (
+                <button className="bo-btn full" type="button" onClick={() => void viewDiff()}><MatrixIcon size={16}>{icons.copy}</MatrixIcon>{diffText !== null ? "Hide diff" : "Review diff"}</button>
+              )}
+              {diffText !== null && <DiffView diff={diffText} />}
+              {cloudArtifactUrl(cloudRun?.logs_url ?? null) && (
+                <a className="bo-btn full" href={cloudArtifactUrl(cloudRun?.logs_url ?? null)!} target="_blank" rel="noopener noreferrer"><MatrixIcon size={16}>{icons.clock}</MatrixIcon>View logs</a>
+              )}
+              <div className="br-next-d" style={{ opacity: 0.8 }}>GitPilot test pass is not Matrix approval — Matrix Builder still validates the result before any commit.</div>
+              {cloudRun && isCloudRunTerminal(cloudRun.status) && !validation && (
+                <button className="bo-btn primary full" type="button" disabled={gateBusy} onClick={() => void validateRun()}><MatrixIcon size={16}>{icons.shield}</MatrixIcon>{gateBusy ? "Validating…" : "Validate with Matrix"}</button>
+              )}
+              {validation && (
+                <>
+                  <div className="br-next-d">Matrix verdict: <strong>{validation.gate.status}</strong> · score {validation.report.score}{validation.report.violations.length > 0 ? ` · ${validation.report.violations.length} finding(s)` : ""}</div>
+                  {validation.gate.can_commit && (
+                    <>
+                      <button className="bo-btn primary full" type="button" disabled={bundleLoading} onClick={onSubmit}><MatrixIcon size={16}>{icons.check}</MatrixIcon>Create Matrix Commit</button>
+                      <button className="bo-btn full" type="button" disabled={gateBusy} onClick={() => void createPr()}><MatrixIcon size={16}>{icons.plug}</MatrixIcon>{gateBusy ? "Opening PR…" : "Create PR on GitHub"}</button>
+                      {prUrl && <a className="br-next-d" href={prUrl} target="_blank" rel="noopener noreferrer">View PR → {prUrl}</a>}
+                    </>
+                  )}
+                  {validation.gate.can_repair && (
+                    <button className="bo-btn full" type="button" disabled={gateBusy} onClick={() => void repairRun()}><MatrixIcon size={16}>{icons.cpu}</MatrixIcon>{gateBusy ? "Dispatching…" : "Generate repair prompt for GitPilot"}</button>
+                  )}
+                  {validation.gate.blocked && (
+                    <div className="br-next-d" style={{ color: "#ff6b6b" }}>Rejected — commit blocked. Fix the contract violations and re-run.</div>
+                  )}
+                </>
+              )}
+            </article>
+          )}
           <article className="darkpanel br-next reveal">
             <div className="br-next-t">Ran it? Check the result.</div>
             <div className="br-next-d">After your agent implements Batch {cur.n}, submit what changed and Matrix validates it.</div>
@@ -1368,6 +1613,14 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
   const [batchIndex, setBatchIndex] = useState(initialBuild?.batchIndex ?? 0);
   const [passed, setPassed] = useState(initialBuild?.passed ?? 0);
   const [coder, setCoder] = useState<CoderId>(initialBuild?.coder ?? "claude-code");
+  // Apply the saved "Default AI coder" preference for fresh builds (None = no
+  // override, so the built-in default stands). Client-only to avoid SSR mismatch.
+  useEffect(() => {
+    if (initialBuild) return;
+    const preferred = getDefaultCoder();
+    if (preferred) setCoder(preferred);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [toast, setToast] = useState<string | null>(null);
   const [animationSafe, setAnimationSafe] = useState(false);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1861,6 +2114,7 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
           promptLoading={promptLoading}
           bundleLoading={bundleLoading}
           fileCount={bundleFiles.length}
+          bundleId={bundleId}
           showToast={showToast}
           onNew={startNewBuild}
           onMyBuilds={() => router.push("/matrix-builder/builds")}

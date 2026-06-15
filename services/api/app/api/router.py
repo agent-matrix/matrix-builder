@@ -1,6 +1,6 @@
 from __future__ import annotations
 from fastapi import APIRouter
-from app.api import audit, auth, blueprints, bundles, health, ideas, ingest, metrics, prompts, publications, standards, users, validation, workflow
+from app.api import audit, auth, blueprints, bundles, gitpilot, health, ideas, ingest, metrics, prompts, publications, standards, users, validation, workflow
 api_router=APIRouter()
 api_router.include_router(health.router, tags=['health'])
 api_router.include_router(auth.router, tags=['auth'])
@@ -9,6 +9,7 @@ api_router.include_router(metrics.router, tags=['metrics'])
 api_router.include_router(ideas.router, prefix='/ideas', tags=['ideas'])
 api_router.include_router(blueprints.router, prefix='/blueprints', tags=['blueprints'])
 api_router.include_router(bundles.router, prefix='/bundles', tags=['bundles'])
+api_router.include_router(gitpilot.router, prefix='/gitpilot', tags=['gitpilot'])
 api_router.include_router(ingest.router, prefix='/ingest', tags=['ingest'])
 api_router.include_router(prompts.router, prefix='/prompts', tags=['prompts'])
 api_router.include_router(validation.router, prefix='/validation', tags=['validation'])
