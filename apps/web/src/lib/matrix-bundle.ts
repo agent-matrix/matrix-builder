@@ -1,3 +1,6 @@
+// OFFLINE FALLBACK ONLY. The build flow downloads the engine's real bundle zip (/bundles/{id}
+// /download) and shows the engine's file manifest; this reconstructs an equivalent bundle locally
+// only when the API is unreachable, so the demo still produces a downloadable zip without a backend.
 import type { BlueprintCandidate } from "@/types/blueprint";
 import type { BundleFile } from "@/types/bundle";
 import { AI_CODERS } from "./constants";

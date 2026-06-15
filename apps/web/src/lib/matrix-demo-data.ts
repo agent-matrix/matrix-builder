@@ -1,3 +1,6 @@
+// OFFLINE FALLBACK ONLY. The build flow calls the engine (/blueprints/candidates) for real
+// candidates; this deterministic generator is used solely when the API is unreachable, so the
+// demo still renders without a backend. Kept in shape-parity with the engine's candidates.
 import type { BlueprintCandidate } from "@/types/blueprint";
 import { IDEA_EXAMPLES } from "./constants";
 import { slugify } from "./ids";

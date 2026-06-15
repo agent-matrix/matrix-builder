@@ -81,6 +81,9 @@ class MatrixBuilderService:
             blueprint,
             preferred_coder=payload.preferred_coder,
         )
+        # In sdk mode this is the engine's compiled, byte-for-byte content (== the CLI's bundle);
+        # in mock mode it is None and the store renders a deterministic dev bundle.
+        engine_files = self.agent_generator.compile_bundle_files(blueprint, payload.preferred_coder)
         assert self.bundle_store is not None
         return self.bundle_store.create_bundle(
             bundle,
@@ -88,6 +91,7 @@ class MatrixBuilderService:
             preferred_coder=payload.preferred_coder,
             persist=payload.persist,
             owner_id=payload.account_id,
+            engine_files=engine_files,
         )
 
     def get_bundle(self, bundle_id: str) -> MatrixBundle:
@@ -137,7 +141,11 @@ class MatrixBuilderService:
         payload: ValidationRequest | None = None,
     ) -> ValidationReport:
         bundle = self.get_bundle(bundle_id)
-        if self.agent_generator.mode == "sdk":
+        # A submitted patch (changed files / dependency changes) gets the metadata contract check:
+        # real findings, computed statelessly against the bundle's contract — no control-plane DB.
+        # A bare bundle_id (no submitted changes) asks the engine to validate the bundle itself.
+        has_changes = bool(payload and (payload.changed_files or payload.dependency_changes))
+        if not has_changes and self.agent_generator.mode == "sdk":
             return self.agent_generator.validate_bundle(bundle_id)
         assert self.drift_detector is not None
         if payload and payload.bundle_id is None:

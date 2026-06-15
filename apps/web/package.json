@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "lint": "node ../../scripts/check_frontend.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --import ./test/setup.mjs --test \"src/lib/__tests__/*.test.ts\""
   },
   "dependencies": {
     "next": "^15.0.0",

@@ -6,8 +6,7 @@
 // designed so the swap is local to this module.
 
 import { getUser } from "@/lib/auth-token";
-import { STAGES } from "@/lib/build-batches";
-import { SAVED_BUNDLES, type BuildStatus } from "@/lib/saved-bundles";
+import { type BuildStatus } from "@/lib/saved-bundles";
 import type { CoderId } from "@/types/coder";
 
 export type SavedBuild = {
@@ -38,32 +37,6 @@ function storageKey(): string {
   return PREFIX + userKey();
 }
 
-function statusToPassed(status: BuildStatus): number {
-  return status === "validated" ? STAGES.length : status === "ready" ? 1 : 0;
-}
-
-// Demo builds so a fresh account isn't an empty page — these are examples the user can open,
-// delete, or build on top of. Real builds created in the app are persisted alongside them.
-function seed(): SavedBuild[] {
-  const now = Date.now();
-  const HOUR = 3_600_000;
-  const offsets = [2 * HOUR, 24 * HOUR, 48 * HOUR, 72 * HOUR, 96 * HOUR, 120 * HOUR, 144 * HOUR, 168 * HOUR];
-  return SAVED_BUNDLES.map((bundle, index) => ({
-    id: bundle.id,
-    name: bundle.name,
-    description: bundle.description,
-    status: bundle.status,
-    version: bundle.version,
-    files: bundle.files,
-    stack: bundle.stack,
-    updatedAt: now - (offsets[index] ?? (index + 1) * HOUR),
-    passed: statusToPassed(bundle.status),
-    // Demos didn't capture an idea/tier; reopen them as a standard build of their own name.
-    idea: bundle.name.replace(/-/g, " "),
-    candidateId: bundle.name.endsWith("-lite") ? "minimal" : "standard",
-  }));
-}
-
 function read(): SavedBuild[] | null {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(storageKey());
@@ -83,9 +56,8 @@ function persist(list: SavedBuild[], notify: boolean): void {
 }
 
 export function listBuilds(): SavedBuild[] {
-  const existing = read();
-  const list = existing ?? seed();
-  if (!existing) persist(list, false); // first visit for this account: lay down the seed quietly
+  // Fresh accounts start empty (no seeded demos); the My Builds page shows its empty state.
+  const list = read() ?? [];
   return [...list].sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
@@ -94,7 +66,7 @@ export function getBuild(id: string): SavedBuild | null {
 }
 
 export function upsertBuild(build: SavedBuild): void {
-  const list = read() ?? seed();
+  const list = read() ?? [];
   const index = list.findIndex((entry) => entry.id === build.id);
   if (index >= 0) list[index] = build;
   else list.unshift(build);
@@ -102,7 +74,7 @@ export function upsertBuild(build: SavedBuild): void {
 }
 
 export function removeBuild(id: string): void {
-  const list = (read() ?? seed()).filter((build) => build.id !== id);
+  const list = (read() ?? []).filter((build) => build.id !== id);
   persist(list, true);
 }
 

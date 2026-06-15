@@ -28,11 +28,12 @@ export default function MyBuildsPage() {
   const [qy, setQy] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [builds, setBuilds] = useState<SavedBuild[]>([]);
+  const [loaded, setLoaded] = useState(false); // avoid flashing the empty state before the first read
 
   // Builds live in localStorage, scoped to the signed-in account; re-read when they change
   // or the account switches so each user only ever sees their own private builds.
   useEffect(() => {
-    const refresh = () => setBuilds(listBuilds());
+    const refresh = () => { setBuilds(listBuilds()); setLoaded(true); };
     refresh();
     window.addEventListener(BUILDS_EVENT, refresh);
     window.addEventListener(AUTH_EVENT, refresh);
@@ -79,7 +80,11 @@ export default function MyBuildsPage() {
           <div className="lib-sort">Sort by <span className="lib-sortbtn">Last updated <span className="cv">▾</span></span></div>
         </div>
 
-        {list.length ? (
+        {!loaded ? (
+          <div className="lib-grid stag" aria-busy="true">
+            {[0, 1, 2].map((i) => <div key={i} className="bundle-card bc-skel" aria-hidden="true" />)}
+          </div>
+        ) : list.length ? (
           <div className="lib-grid stag">
             {list.map((b) => (
               <article key={b.id} className="bundle-card" tabIndex={0} onClick={() => open(b.id)} onKeyDown={(e) => e.key === "Enter" && open(b.id)}>
@@ -91,12 +96,24 @@ export default function MyBuildsPage() {
               </article>
             ))}
           </div>
-        ) : (
+        ) : builds.length ? (
+          // Have builds, but the current search/filter matched none.
           <div className="lib-empty reveal in">
             <div className="le-mark">◇</div>
-            <div className="le-t">No builds found</div>
-            <div className="le-d">Try a different search, or start a new build.</div>
-            <button className="bo-btn primary" type="button" onClick={() => router.push("/matrix-builder")}><Ic d={I.plus} size={16} />New build</button>
+            <div className="le-t">No builds match your search</div>
+            <div className="le-d">Try a different search or filter.</div>
+            <button className="bo-btn" type="button" onClick={() => { setQy(""); setFilter("all"); }}>Clear filters</button>
+          </div>
+        ) : (
+          // Truly empty account — first run.
+          <div className="lib-empty reveal in">
+            <div className="le-mark">◇</div>
+            <div className="le-t">No builds yet</div>
+            <div className="le-d">Start your first build, or explore the examples to see what Matrix Builder produces.</div>
+            <div style={{ display: "inline-flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+              <button className="bo-btn primary" type="button" onClick={() => router.push("/matrix-builder")}><Ic d={I.plus} size={16} />New build</button>
+              <button className="bo-btn" type="button" onClick={() => router.push("/examples")}>Browse examples</button>
+            </div>
           </div>
         )}
 

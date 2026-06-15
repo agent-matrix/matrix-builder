@@ -24,7 +24,10 @@ RUN cp -r .next/static .next/standalone/.next/static \
 # ── stage 2: runtime (Node UI + Python API) ───────────────────────────────────────────────
 FROM node:20-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/services/api \
-    PIP_NO_CACHE_DIR=1 PORT=7860 PATH=/opt/venv/bin:$PATH
+    PIP_NO_CACHE_DIR=1 PORT=7860 PATH=/opt/venv/bin:$PATH \
+    # Run the REAL engine in production: load agent_generator.engine.AgentGenerator and the
+    # signed matrix-definitions pack instead of fabricating candidates/bundles/validation.
+    AGENT_GENERATOR_MODE=sdk MATRIX_DEFINITIONS_MODE=sdk
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv \
   && rm -rf /var/lib/apt/lists/* \
