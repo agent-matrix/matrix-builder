@@ -7,24 +7,31 @@ import BundleThumbnail from "./BundleThumbnail";
 import { AI_CODERS, IDEA_EXAMPLES, SCANNING_MESSAGES } from "@/lib/constants";
 import { STAGES, timelineBatches, type Stage } from "@/lib/build-batches";
 import { saveBuildProgress } from "@/lib/builds-store";
-import { thumbVariant, type BuildStatus } from "@/lib/saved-bundles";
+import { type BuildStatus } from "@/lib/saved-bundles";
 import { createBundleFiles } from "@/lib/matrix-bundle";
 import { createBlueprintCandidates } from "@/lib/matrix-demo-data";
 import { toUiBundleFiles, toUiCandidates } from "@/lib/engine-map";
-import { enrichBlueprintCandidates, explainValidationFindings, type EnrichmentMap } from "@/lib/ai-provider-manager";
+import { briefToIdea, enhanceProjectBrief, enrichBlueprintCandidates, explainValidationFindings, isOllaBridgeAssistAvailable, type EnrichmentMap } from "@/lib/ai-provider-manager";
+import UploadExistingPlanModal, { type UploadSelection } from "@/components/matrix-builder/UploadExistingPlanModal";
 import {
   downloadBundleZip,
   generateBundle as apiGenerateBundle,
+  generateBundleFromBlueprint,
   getBlueprintCandidates,
   getBundle,
   getBundlePrompt,
+  importBlueprint,
+  ingestDocument,
   parseIdea,
   validateChanges,
 } from "@/lib/workflow-client";
+import { fetchTemplate, templateToIdea, type TemplateId } from "@/lib/templates";
+import { CODER_ACTIONS } from "@/lib/coder-actions";
 import { generateBundleId } from "@/lib/ids";
 import { makeZip } from "@/lib/zip";
 import type { BlueprintCandidate } from "@/types/blueprint";
 import type { BundleFile, MatrixBundleContract } from "@/types/bundle";
+import type { ProjectBriefContract } from "@/lib/workflow-types";
 import type { CoderId } from "@/types/coder";
 import type { ValidationReportContract } from "@/types/contracts";
 
@@ -33,6 +40,40 @@ type Phase = "hero" | "scanning" | "candidates" | "bundle" | "submit" | "running
 // Paths the AI coder reports as changed (parsed from the pasted result) → validated against the
 // contract. status defaults to "modified".
 type ChangedPath = { path: string; status: "added" | "modified" | "deleted" | "renamed" };
+
+// --- Import-existing-plan helpers (Batches 4–6) ------------------------------------------------
+function _rec(v: unknown): Record<string, unknown> {
+  return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+}
+function _strs(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+}
+// Fold an arbitrary template/brief-shaped object into an idea string (fallback when an uploaded
+// JSON isn't a complete blueprint).
+function objToIdea(o: Record<string, unknown>): string {
+  const name = typeof o.name === "string" ? o.name : typeof o.title === "string" ? o.title : "";
+  const summary = typeof o.summary === "string" ? o.summary : "";
+  const features = _strs(o.features);
+  const parts = [name, summary].filter(Boolean);
+  if (features.length) parts.push("Key features: " + features.slice(0, 6).join(", "));
+  return parts.join(". ").slice(0, 3900);
+}
+// Minimal candidate so the bundle screen can render for an imported (skip-AI) blueprint.
+function syntheticCandidate(b: Record<string, unknown>): BlueprintCandidate {
+  const stack = _strs(Object.values(_rec(b.stack)));
+  return {
+    id: "standard",
+    tier: "Standard",
+    name: typeof b.name === "string" ? b.name : "Imported blueprint",
+    summary: typeof b.idea === "string" ? b.idea : "User-provided blueprint",
+    stack: stack.length ? stack : ["Next.js", "FastAPI"],
+    files: _strs(b.required_files).length || 1,
+    difficulty: "Medium",
+    time: "—",
+    standards: _strs(b.standards),
+    candidate_id: typeof b.candidate_id === "string" ? b.candidate_id : undefined,
+  };
+}
 
 // Pull file paths out of whatever the user pasted (a summary, a git diff, a file list). We look for
 // path-shaped tokens and strip common diff/list prefixes; if nothing parses we fall back to the
@@ -220,6 +261,7 @@ const icons = {
     </>
   ),
   chevR: <path d="M9 6l6 6-6 6" />,
+  info: (<><circle cx="12" cy="12" r="9" /><path d="M12 11.5v4.5" /><path d="M12 8h.01" /></>),
 };
 
 // Map each AI coder to one of the icons above (mirrors the design's CODER_ICON).
@@ -541,7 +583,7 @@ function BuilderBar({ onNew, onNotice }: { onNew: () => void; onNotice?: (messag
   return (
     <header className="mb-bar">
       <div className="l-wrap mb-bar-in">
-        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <a href="/matrix-builder" className="l-brand"><span className="gl">◇</span>Matrix Builder</a>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
           <button className="mb-back" type="button" onClick={onNew}><MatrixIcon size={16}>{icons.back}</MatrixIcon>New build</button>
           <AuthControls onNotice={onNotice} />
@@ -573,9 +615,11 @@ function FileTree({ files }: { files: BundleFile[] }) {
   );
 }
 
-function LandingHero({ idea, setIdea, generate }: { idea: string; setIdea: (value: string) => void; generate: () => void }) {
+function LandingHero({ idea, setIdea, generate, onUpload }: { idea: string; setIdea: (value: string) => void; generate: () => void; onUpload: () => void }) {
   // One rotating "Try" suggestion — a fresh, random idea on every visit (and on shuffle).
   const [suggestion, setSuggestion] = useState<string>(IDEA_EXAMPLES[0]);
+  const [touched, setTouched] = useState(false);
+  const empty = !idea.trim();
   const shuffle = () => setSuggestion((cur) => {
     const pool = IDEA_EXAMPLES.filter((e) => e !== cur);
     return pool[Math.floor(Math.random() * pool.length)] ?? cur;
@@ -586,7 +630,7 @@ function LandingHero({ idea, setIdea, generate }: { idea: string; setIdea: (valu
       <div className="l-dark">
         <header className="l-head">
           <div className="l-wrap l-head-in">
-            <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+            <a href="/matrix-builder" className="l-brand"><span className="gl">◇</span>Matrix Builder</a>
             <nav className="l-nav">
               <a href="/matrix-builder/about">About</a>
               <a href="https://agent-matrix.github.io/matrix-definitions/definitions/">Definitions</a>
@@ -604,14 +648,18 @@ function LandingHero({ idea, setIdea, generate }: { idea: string; setIdea: (valu
               <div className="l-form l-an d2">
                 <div className="l-idea">
                   <span className="ic"><MatrixIcon size={20}>{icons.search}</MatrixIcon></span>
-                  <input value={idea} onChange={(event) => setIdea(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") generate(); }} placeholder="Describe what you want to build…" aria-label="Describe your idea" />
-                  <button className="l-go" type="button" onClick={generate}>Generate blueprint <span aria-hidden="true">→</span></button>
+                  <input value={idea} onChange={(event) => setIdea(event.target.value)} onBlur={() => setTouched(true)} onKeyDown={(event) => { if (event.key === "Enter") generate(); }} placeholder="Describe what you want to build…" aria-label="Describe your idea" />
+                  <button className="l-go" type="button" onClick={() => generate()} disabled={empty} title={empty ? "Add an idea or upload a brief/design to continue." : undefined}>Generate blueprint <span aria-hidden="true">→</span></button>
                 </div>
+                {touched && empty && <p className="l-hint">Add an idea or upload a brief/design to continue.</p>}
                 <div className="l-chips">
                   <span className="ck">Try</span>
                   <button className="l-chip" type="button" onClick={() => setIdea(suggestion)} key={suggestion}>{suggestion}</button>
                   <button className="l-shuffle" type="button" onClick={shuffle} aria-label="Show another idea" title="Show another idea">↻</button>
                 </div>
+                <button className="l-upload-link" type="button" onClick={onUpload} aria-label="Upload a brief, blueprint, design, or JSON" title="Upload a brief, blueprint, design, or JSON">
+                  <MatrixIcon size={15}>{icons.plug}</MatrixIcon>Attach
+                </button>
               </div>
             </div>
             <Carousel />
@@ -749,6 +797,22 @@ function BundleResult({
   const buildName = candidate.name;
   const coderEntry = AI_CODERS.find((item) => item.id === coder) ?? AI_CODERS[1];
   const cur = STAGES[batchIndex];
+  const [extraDetail, setExtraDetail] = useState("");
+
+  // Single source of truth: the sidebar actions follow the SELECTED coder (no hardcoded Claude).
+  const actions = CODER_ACTIONS[coder] ?? CODER_ACTIONS["generic-ai-coder"];
+  // What we hand the agent = the controlled prompt (it already embeds the signed bundle URL) plus
+  // any extra detail the user added.
+  const handoffText = () => prompt + (extraDetail.trim() ? `\n\nExtra detail: ${extraDetail.trim()}` : "");
+  const runCoderAction = (a: { label: string; kind: "open" | "copy"; url?: string }) => {
+    try { void navigator.clipboard?.writeText(handoffText()); } catch { /* clipboard unavailable */ }
+    if (a.kind === "open" && a.url) {
+      showToast(`Prompt copied — opening ${coderEntry.short}…`);
+      window.open(a.url, "_blank", "noopener");
+    } else {
+      showToast(`Prompt copied — paste it into ${coderEntry.short}`);
+    }
+  };
 
   const copyPrompt = async () => {
     if (!prompt) return;
@@ -763,7 +827,7 @@ function BundleResult({
   return (
     <div className="mb-dark-page">
       <header className="mb-detail-bar"><div className="l-wrap dbar-in">
-        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <a href="/matrix-builder" className="l-brand"><span className="gl">◇</span>Matrix Builder</a>
         <div className="dbar-r" style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
           <button className="l-newbuild" type="button" onClick={onNew}><MatrixIcon size={15}>{icons.plus}</MatrixIcon>New build</button>
           <AuthControls onNotice={showToast} />
@@ -830,15 +894,26 @@ function BundleResult({
           <button className="bo-btn primary br-copy reveal" type="button" disabled={promptLoading || !prompt} onClick={() => void copyPrompt()}><MatrixIcon size={17}>{icons.copy}</MatrixIcon>Copy Batch {cur.n} prompt</button>
         </div>
 
-        {/* RIGHT: next step */}
+        {/* RIGHT: hand off to a coding agent, then confirm the run */}
         <aside className="brx-right">
           <article className="darkpanel br-next reveal">
-            <div className="br-next-top"><span className="br-next-ic"><MatrixIcon size={22}>{icons.plug}</MatrixIcon></span><span className="br-next-k">Next step</span></div>
-            <div className="br-next-t">Run this prompt in your AI coder.</div>
-            <div className="br-next-d">Open your preferred AI coder, paste the prompt, and let it implement Batch {cur.n}.</div>
+            <div className="br-next-top"><span className="br-next-ic"><MatrixIcon size={22}>{icons.plug}</MatrixIcon></span><span className="br-next-k">{actions.title}</span></div>
+            <div className="br-next-d">{actions.description}</div>
+            <button className="bo-btn primary full" type="button" disabled={promptLoading || !prompt} onClick={() => runCoderAction(actions.primary)}><MatrixIcon size={16}>{actions.primary.kind === "open" ? icons.cpu : icons.copy}</MatrixIcon>{actions.primary.label}</button>
+            {actions.secondary && (
+              <button className="bo-btn full" type="button" disabled={promptLoading || !prompt} onClick={() => runCoderAction(actions.secondary!)}><MatrixIcon size={16}>{actions.secondary.kind === "open" ? icons.cpu : icons.copy}</MatrixIcon>{actions.secondary.label}</button>
+            )}
+            <button className="bo-btn full" type="button" disabled={bundleLoading} onClick={onDownload}><MatrixIcon size={16}>{icons.download}</MatrixIcon>{bundleLoading ? "Preparing bundle…" : `Download ZIP instead (${fileCount})`}</button>
+            <details className="br-detail">
+              <summary>{actions.detailLabel} (optional)</summary>
+              <textarea className="br-detail-ta" rows={3} value={extraDetail} placeholder="e.g. use Tailwind, add a footer, keep it minimal…" onChange={(e) => setExtraDetail(e.target.value)} />
+            </details>
+          </article>
+          <article className="darkpanel br-next reveal">
+            <div className="br-next-t">Ran it? Check the result.</div>
+            <div className="br-next-d">After your agent implements Batch {cur.n}, submit what changed and Matrix validates it.</div>
             <button className="bo-btn primary full" type="button" disabled={bundleLoading} onClick={onSubmit}><MatrixIcon size={16}>{icons.check}</MatrixIcon>I ran this batch</button>
             <button className="bo-btn full" type="button" onClick={onTimeline}><MatrixIcon size={16}>{icons.clock}</MatrixIcon>View timeline</button>
-            <button className="bo-btn full" type="button" disabled={bundleLoading} onClick={onDownload}><MatrixIcon size={16}>{icons.download}</MatrixIcon>{bundleLoading ? "Preparing bundle…" : `Download ZIP (${fileCount} files)`}</button>
           </article>
         </aside>
       </div>
@@ -879,7 +954,7 @@ function SubmitResult({
   return (
     <div className="mb-dark-page">
       <header className="mb-detail-bar"><div className="l-wrap dbar-in">
-        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <a href="/matrix-builder" className="l-brand"><span className="gl">◇</span>Matrix Builder</a>
         <div className="dbar-r" style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
           <button className="l-newbuild" type="button" onClick={onNew}><MatrixIcon size={15}>{icons.plus}</MatrixIcon>New build</button>
           <AuthControls onNotice={showToast} />
@@ -998,7 +1073,7 @@ function RunLog({
   return (
     <div className="mb-dark-page">
       <header className="mb-detail-bar"><div className="l-wrap dbar-in">
-        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <a href="/matrix-builder" className="l-brand"><span className="gl">◇</span>Matrix Builder</a>
         <div className="dbar-r" style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
           <button className="l-newbuild" type="button" onClick={onNew}><MatrixIcon size={15}>{icons.plus}</MatrixIcon>New build</button>
           <AuthControls onNotice={showToast} />
@@ -1079,7 +1154,7 @@ function ValidationResult({
   return (
     <div className="mb-dark-page">
       <header className="mb-detail-bar"><div className="l-wrap dbar-in">
-        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <a href="/matrix-builder" className="l-brand"><span className="gl">◇</span>Matrix Builder</a>
         <div className="dbar-r" style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
           <button className="l-newbuild" type="button" onClick={onNew}><MatrixIcon size={15}>{icons.plus}</MatrixIcon>New build</button>
           <AuthControls onNotice={showToast} />
@@ -1160,7 +1235,7 @@ function BuildTimeline({
   return (
     <div className="mb-dark-page">
       <header className="mb-detail-bar"><div className="l-wrap dbar-in">
-        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <a href="/matrix-builder" className="l-brand"><span className="gl">◇</span>Matrix Builder</a>
         <div className="dbar-r" style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
           <button className="l-newbuild" type="button" onClick={onNew}><MatrixIcon size={15}>{icons.plus}</MatrixIcon>New build</button>
           <AuthControls onNotice={showToast} />
@@ -1181,7 +1256,7 @@ function BuildTimeline({
                   {i < batches.length - 1 && <span className="tl-line" />}
                 </div>
                 <article className="darkpanel tl-card">
-                  <div className="tl-thumb"><BundleThumbnail variant={thumbVariant(buildId + batch.n)} /></div>
+                  <div className="tl-thumb"><BundleThumbnail seed={buildId + batch.n} /></div>
                   <div className="tl-body">
                     <div className="tl-title">Batch {batch.n} — {batch.title}</div>
                     <div className="tl-commit">Matrix Commit {batch.commit} <span className="tl-dot">·</span> <span className="tl-pass">Passed</span></div>
@@ -1229,7 +1304,7 @@ function BuildComplete({
   return (
     <div className="mb-dark-page">
       <header className="mb-detail-bar"><div className="l-wrap dbar-in">
-        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <a href="/matrix-builder" className="l-brand"><span className="gl">◇</span>Matrix Builder</a>
         <div className="dbar-r" style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
           <button className="l-newbuild" type="button" onClick={onNew}><MatrixIcon size={15}>{icons.plus}</MatrixIcon>New build</button>
           <AuthControls onNotice={showToast} />
@@ -1304,7 +1379,8 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
     return () => clearTimeout(timeout);
   }, [phase]);
 
-  const effectiveIdea = idea.trim() || IDEA_EXAMPLES[0];
+  // No silent fallback to an example: an empty idea yields "" and Generate stays disabled.
+  const effectiveIdea = idea.trim();
 
   const showToast = (message: string) => {
     setToast(message);
@@ -1312,10 +1388,37 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
     toastTimeoutRef.current = setTimeout(() => setToast(null), 2600);
   };
 
+  // "Upload existing plan" (Batches 4–6). Routing handlers are defined below, after generate/goPhase.
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [brief, setBrief] = useState<ProjectBriefContract | null>(null);
+  // Step-1 control row: edit the idea + regenerate before committing to a build.
+  const [editingIdea, setEditingIdea] = useState(false);
+  const [ideaDraft, setIdeaDraft] = useState("");
+  // The big heading shows a short subject only — a brief's title, or a clamped idea. Never the
+  // full folded brief/template text (which belongs in the "Project understood" card).
+  const headingRaw = (brief?.title?.trim() || effectiveIdea);
+  const headingSubject = headingRaw.length > 70 ? `${headingRaw.slice(0, 67).trimEnd()}…` : headingRaw;
+  // What created the current cards (shown as a quiet pill in the Step-1 control row).
+  const sourceLabel = brief
+    ? (brief.source_type === "template" ? "Template" : brief.source_type === "design" ? "Design" : "Brief")
+    : "Idea";
+  // Edit the idea inline, then regenerate the three options before committing.
+  const startEditIdea = () => { setIdeaDraft(idea || headingSubject); setEditingIdea(true); };
+  const regenerate = () => {
+    const text = (editingIdea ? ideaDraft : idea).trim();
+    if (!text) return;
+    if (editingIdea) { setIdea(text); setBrief(null); setEditingIdea(false); } // user took manual control
+    generate(text);
+  };
+
   // Step 1 — ask the engine to normalize the idea and return its three real candidates. The
   // scanning screen is the loading state; if the engine is unreachable we fall back to the
   // deterministic offline generator so the demo still works.
-  const generate = () => {
+  const generate = (ideaOverride?: string) => {
+    // Empty-input guard: never silently build from a fallback example. `ideaOverride` lets the
+    // upload/template paths feed their derived idea without waiting for setIdea to settle.
+    const ideaText = (ideaOverride ?? idea).trim();
+    if (!ideaText) return;
     setCandidates([]);
     setCandidatesLoaded(false);
     setEnrichedById({});
@@ -1325,17 +1428,17 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
     void (async () => {
       let list: BlueprintCandidate[];
       try {
-        await parseIdea({ idea: effectiveIdea }).catch(() => undefined); // best-effort normalize
-        const result = await getBlueprintCandidates({ idea: effectiveIdea });
+        await parseIdea({ idea: ideaText }).catch(() => undefined); // best-effort normalize
+        const result = await getBlueprintCandidates({ idea: ideaText });
         list = toUiCandidates(result.candidates);
       } catch {
-        list = createBlueprintCandidates(effectiveIdea); // offline fallback
+        list = createBlueprintCandidates(ideaText); // offline fallback
       }
       setCandidates(list);
       setCandidatesLoaded(true);
       // Optional Internal AI assist (fail-open): improve display copy only, after candidates show.
       void enrichBlueprintCandidates(
-        effectiveIdea,
+        ideaText,
         list.map((c) => ({ id: c.id, tier: c.tier, name: c.name, summary: c.summary })),
       )
         .then((map) => setEnrichedById(map))
@@ -1535,9 +1638,149 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
     else reset();
   };
 
+  // --- Import existing plan (Batches 4–6) ---------------------------------------------------
+  // Path B: a document → deterministic ProjectBrief → same three tiers (fitted).
+  const handleDocument = async (file: File) => {
+    showToast("Reading your brief…");
+    try {
+      const resp = await ingestDocument(file);
+      let brief = resp.brief;
+      let ideaText = resp.idea;
+      // Seam 1 (Batch 7) — optional OllaBridge enhancement for signed-in users; fail-open.
+      if (isOllaBridgeAssistAvailable()) {
+        const enhanced = await enhanceProjectBrief(brief);
+        if (enhanced.enhanced_by === "ollabridge") {
+          brief = enhanced;
+          ideaText = briefToIdea(enhanced);
+        }
+      }
+      setBrief(brief);
+      setIdea(ideaText);
+      showToast(brief.enhanced_by === "ollabridge" ? "Project brief detected · AI-assisted" : "Project brief detected");
+      generate(ideaText);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't read that file.");
+    }
+  };
+
+  // Path C: a complete blueprint compiles verbatim (AI skipped) → straight to the bundle.
+  const buildFromBlueprint = async (bp: unknown) => {
+    const b = _rec(bp);
+    setBrief(null);
+    setChosen(syntheticCandidate(b));
+    setBatchIndex(0);
+    setPassed(0);
+    setBundle(null);
+    setBundleFiles([]);
+    setBundleId("");
+    setBundleLoading(true);
+    goPhase("bundle");
+    try {
+      const real = await generateBundleFromBlueprint(bp, coder);
+      setBundle(real);
+      setBundleFiles(toUiBundleFiles(real));
+      setBundleId(real.bundle_id);
+      saveBuildProgress({
+        id: real.bundle_id,
+        name: typeof b.name === "string" ? b.name : "Imported blueprint",
+        description: typeof b.idea === "string" ? b.idea : "User-provided blueprint",
+        files: _strs(b.required_files).length || toUiBundleFiles(real).length,
+        stack: _strs(Object.values(_rec(b.stack))),
+        coder,
+        passed: 0,
+        status: "draft",
+        idea: typeof b.idea === "string" ? b.idea : (typeof b.name === "string" ? b.name : "blueprint"),
+        candidateId: "standard",
+      });
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't compile the blueprint.");
+    } finally {
+      setBundleLoading(false);
+    }
+  };
+
+  const handleBlueprintJson = async (file: File) => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      showToast("That file isn't valid JSON.");
+      return;
+    }
+    showToast("Validating blueprint…");
+    try {
+      const res = await importBlueprint(parsed);
+      if (res.valid && res.blueprint) {
+        showToast("Blueprint JSON detected — AI skipped.");
+        void buildFromBlueprint(res.blueprint);
+        return;
+      }
+      // Not a complete blueprint (e.g. a lightweight template) — treat as a brief if possible.
+      const derived = objToIdea(_rec(parsed));
+      if (derived) {
+        setIdea(derived);
+        showToast("Imported as a brief");
+        generate(derived);
+      } else {
+        showToast(res.errors?.[0] ?? "That JSON isn't a complete blueprint.");
+      }
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Blueprint import failed.");
+    }
+  };
+
+  const onUploadContinue = (sel: UploadSelection) => {
+    setUploadOpen(false);
+    if (!sel.file) return;
+    const name = sel.file.name.toLowerCase();
+    if (name.endsWith(".json")) void handleBlueprintJson(sel.file);
+    else void handleDocument(sel.file); // pdf/docx/md/txt
+  };
+
+  // Batch 6: "Use template" → fetch the generic template → fold into an idea → same three tiers.
+  const onUseTemplate = (id: TemplateId) => {
+    setUploadOpen(false);
+    showToast("Loading template…");
+    void (async () => {
+      try {
+        const tpl = await fetchTemplate(id);
+        // Structured brief: the SHORT title drives the heading; details go to the
+        // "Project understood" card. The folded idea string is sent only to the engine.
+        setBrief({
+          schema_version: "matrix.builder.brief/v1",
+          source_type: "template",
+          title: tpl.name,
+          summary: tpl.summary,
+          domain: null,
+          goals: tpl.goals ?? [],
+          users: [],
+          features: tpl.features ?? [],
+          screens: [],
+          integrations: [],
+          constraints: [],
+          risks: [],
+          non_functional: tpl.non_functional_requirements ?? [],
+          source_files: [],
+          enhanced_by: "deterministic",
+        });
+        const ideaText = templateToIdea(tpl);
+        setIdea(ideaText);
+        generate(ideaText);
+      } catch (e) {
+        showToast(e instanceof Error ? e.message : "Couldn't load that template.");
+      }
+    })();
+  };
+
   return (
     <div className={`app${animationSafe ? " anim-safe" : ""}`}>
-      {phase === "hero" && <LandingHero idea={idea} setIdea={setIdea} generate={generate} />}
+      <UploadExistingPlanModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onContinue={onUploadContinue}
+        onUseTemplate={onUseTemplate}
+      />
+      {phase === "hero" && <LandingHero idea={idea} setIdea={setIdea} generate={generate} onUpload={() => setUploadOpen(true)} />}
 
       {phase === "scanning" && (
         <>
@@ -1558,9 +1801,49 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
           <div className="l-wrap mb-page">
             <div className="mb-head reveal">
               <span className="mb-eyebrow"><span className="d" />Step 1 · Choose a blueprint</span>
-              <h2 className="mb-h2">Three controlled ways<br />to build <em>{effectiveIdea.toLowerCase()}</em>.</h2>
+              <h2 className="mb-h2">Three controlled ways<br />to build <em>{headingSubject.toLowerCase()}</em>.</h2>
+              <div className="mb-srcrow reveal">
+                <span className="mb-src-pill">{sourceLabel}</span>
+                {editingIdea ? (
+                  <input
+                    className="mb-src-edit"
+                    value={ideaDraft}
+                    autoFocus
+                    onChange={(e) => setIdeaDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") regenerate(); else if (e.key === "Escape") setEditingIdea(false); }}
+                    aria-label="Edit idea"
+                  />
+                ) : (
+                  <button className="mb-src-idea" type="button" onClick={startEditIdea} title="Edit the idea">
+                    <span className="mb-src-text">{headingSubject}</span>
+                    <MatrixIcon size={13}>{icons.edit}</MatrixIcon>
+                  </button>
+                )}
+                {isOllaBridgeAssistAvailable() && (
+                  <span className="mb-src-ai" title="OllaBridge helped understand the input. Matrix Builder still controls the contract.">AI assist <MatrixIcon size={12}>{icons.info}</MatrixIcon></span>
+                )}
+                <button className="mb-src-regen" type="button" onClick={regenerate} title="Regenerate the three options"><MatrixIcon size={14}>{icons.refresh}</MatrixIcon>Regenerate</button>
+              </div>
               <p className="mb-sub">Every candidate ships with locked standards and a build contract. Pick the one that fits your scope.</p>
+              <button className="l-upload-link" type="button" onClick={() => setUploadOpen(true)} aria-label="Upload a brief, blueprint, design, or JSON" title="Upload a brief, blueprint, design, or JSON">
+                <MatrixIcon size={15}>{icons.plug}</MatrixIcon>Attach
+              </button>
             </div>
+            {brief && (
+              <details className="brief-card reveal" open>
+                <summary>
+                  <span className="brief-k">Project understood</span>
+                  {brief.enhanced_by === "ollabridge" && <span className="brief-ai">✦ AI-assisted understanding</span>}
+                </summary>
+                <div className="brief-body">
+                  <div className="brief-t">{brief.title}</div>
+                  <p className="brief-sum">{brief.summary}</p>
+                  {brief.features.length > 0 && (
+                    <div className="brief-tags">{brief.features.slice(0, 6).map((f) => <span key={f} className="brief-tag">{f}</span>)}</div>
+                  )}
+                </div>
+              </details>
+            )}
             <div className="cand-grid stag">
               {candidates.map((candidate) => <CandidateCard key={candidate.id} candidate={candidate} choose={choose} enrichment={enrichedById[candidate.id]} />)}
             </div>

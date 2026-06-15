@@ -47,7 +47,7 @@ export default function BuildDetailPage() {
   return (
     <div className="mb-dark-page">
       <header className="mb-detail-bar"><div className="l-wrap dbar-in">
-        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <a href="/matrix-builder" className="l-brand"><span className="gl">◇</span>Matrix Builder</a>
       </div></header>
       <div className="l-wrap tl">
         {state.status === "missing" ? (

@@ -30,7 +30,7 @@ const requiredClientPhrases = [
   "SCANNING_MESSAGES",
   "BlueprintCandidate",
   "Build progress",
-  "Run this prompt in your AI coder",
+  "Ran it? Check the result.",
   "Download ZIP",
   "Copy Batch",
   "I ran this batch",

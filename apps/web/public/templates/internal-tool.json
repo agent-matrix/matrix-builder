@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "template_id": "internal-tool",
+  "name": "Internal Tool",
+  "summary": "Generic internal admin tool with forms, reports, role-based access, and integrations.",
+  "source_type": "template",
+  "goals": [
+    "Provide a controlled internal admin foundation",
+    "Support role-based access and reporting",
+    "Integrate with internal systems safely"
+  ],
+  "users": [
+    "admin",
+    "operator",
+    "viewer"
+  ],
+  "features": [
+    "data forms",
+    "reports",
+    "role-based access",
+    "integrations",
+    "audit-friendly events"
+  ],
+  "suggested_stack": [
+    "Next.js",
+    "FastAPI",
+    "PostgreSQL"
+  ],
+  "non_functional_requirements": [
+    "testable architecture",
+    "clear API boundaries",
+    "basic observability",
+    "secure defaults"
+  ],
+  "validation_focus": [
+    "required files present",
+    "allowed changes only",
+    "no dependency drift",
+    "tests pass"
+  ]
+}

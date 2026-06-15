@@ -59,6 +59,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: "#02170f",
   colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+  // Extend under the iPhone notch / Android cutouts so env(safe-area-inset-*) works edge-to-edge.
+  viewportFit: "cover",
 };
 
 const jsonLd = {

@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "template_id": "document-qna",
+  "name": "Document Q&A",
+  "summary": "Generic document assistant with upload, indexing, retrieval, answer generation, and citations.",
+  "source_type": "template",
+  "goals": [
+    "Answer questions from uploaded documents",
+    "Provide citations for every answer",
+    "Keep retrieval controlled and auditable"
+  ],
+  "users": [
+    "analyst",
+    "reviewer",
+    "end user"
+  ],
+  "features": [
+    "document upload",
+    "indexing",
+    "retrieval",
+    "answer generation",
+    "citations"
+  ],
+  "suggested_stack": [
+    "Next.js",
+    "FastAPI",
+    "PostgreSQL"
+  ],
+  "non_functional_requirements": [
+    "testable architecture",
+    "clear API boundaries",
+    "basic observability",
+    "secure defaults"
+  ],
+  "validation_focus": [
+    "required files present",
+    "allowed changes only",
+    "no dependency drift",
+    "tests pass"
+  ]
+}

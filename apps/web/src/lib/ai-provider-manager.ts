@@ -7,6 +7,7 @@
 // provider="none" returns the deterministic input unchanged and makes no claim on the result.
 
 import { getAISettings, saveAISettings } from "@/lib/ai-settings-store";
+import { getUser } from "@/lib/auth-token";
 import {
   fetchOllaBridgeModels,
   pairWithOllaBridge as pairClient,
@@ -16,12 +17,19 @@ import {
   type PairResult,
 } from "@/lib/ollabridge-client";
 import type { MatrixAISettings } from "@/types/ai-settings";
+import type { ProjectBriefContract } from "@/lib/workflow-types";
 
 export { getAISettings, saveAISettings };
 
 // Assist is live only when the user explicitly chose OllaBridge AND turned on assisted mode.
 export function isAssistEnabled(settings: MatrixAISettings = getAISettings()): boolean {
   return settings.provider === "ollabridge" && settings.mode === "assisted";
+}
+
+// Batch 7 gate: AI assist requires a signed-in user *and* OllaBridge enabled. Free/anonymous
+// users always get the deterministic path.
+export function isOllaBridgeAssistAvailable(): boolean {
+  return isAssistEnabled() && Boolean(getUser());
 }
 
 export function pairWithOllaBridge(code: string): Promise<PairResult> {
@@ -158,4 +166,77 @@ export async function explainValidationFindings(
   } catch {
     return null;
   }
+}
+
+// --- ProjectBrief enhancement (Seam 1, text-only, fail-open) -----------------------------------
+
+const ENHANCE_SYSTEM =
+  "You are helping Matrix Builder understand project input. Return a ProjectBrief as STRICT JSON " +
+  "only. Do not create a blueprint, Matrix files, variants, validation, or approval.";
+const CONFIDENCE_THRESHOLD = 0.65;
+
+function _strList(v: unknown, limit: number): string[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+    .map((s) => s.trim().slice(0, 160))
+    .slice(0, limit);
+}
+
+// Pure + exported for unit tests: merge an AI result onto the deterministic brief, keeping ONLY
+// safe descriptive fields. Returns the ORIGINAL brief when the AI output is invalid, missing
+// title/summary, or below the confidence threshold — so the deterministic brief always stands.
+export function sanitizeBrief(original: ProjectBriefContract, aiResult: unknown): ProjectBriefContract {
+  const r = (aiResult && typeof aiResult === "object" ? aiResult : {}) as Record<string, unknown>;
+  const title = typeof r.title === "string" ? r.title.trim() : "";
+  const summary = typeof r.summary === "string" ? r.summary.trim() : "";
+  const confidence = typeof r.confidence === "number" ? r.confidence : Number.NaN;
+  if (!title || !summary || !(confidence >= CONFIDENCE_THRESHOLD)) return original;
+
+  const goals = _strList(r.goals, 8);
+  const features = _strList(r.features, 12);
+  const users = _strList(r.users, 8);
+  const nfr = _strList((r.nonFunctionalRequirements ?? r.non_functional) as unknown, 8);
+  return {
+    ...original,
+    title: title.slice(0, 120),
+    summary: summary.slice(0, 400),
+    goals: goals.length ? goals : original.goals,
+    features: features.length ? features : original.features,
+    users: users.length ? users : original.users,
+    non_functional: nfr.length ? nfr : original.non_functional,
+    missingQuestions: _strList(r.missingQuestions, 6),
+    confidence,
+    enhanced_by: "ollabridge",
+  };
+}
+
+// Optionally enrich a deterministic ProjectBrief via OllaBridge (signed-in + assist only).
+// Fail-open: any problem returns the original brief unchanged.
+export async function enhanceProjectBrief(brief: ProjectBriefContract): Promise<ProjectBriefContract> {
+  if (!isOllaBridgeAssistAvailable()) return brief;
+  try {
+    const user =
+      "Improve this ProjectBrief, staying truthful to the source. Return STRICT JSON with fields: " +
+      "title, summary, goals[], features[], users[], nonFunctionalRequirements[], missingQuestions[], " +
+      "confidence (0..1).\n\n" +
+      JSON.stringify({ title: brief.title, summary: brief.summary, features: brief.features, goals: brief.goals });
+    const text = await sendAIMessage([
+      { role: "system", content: ENHANCE_SYSTEM },
+      { role: "user", content: user },
+    ]);
+    const parsed = tryParseJson(text);
+    return parsed ? sanitizeBrief(brief, parsed) : brief;
+  } catch {
+    return brief;
+  }
+}
+
+// Fold a brief into the idea string the deterministic engine parses (mirrors the backend).
+export function briefToIdea(b: { title: string; summary: string; features?: string[]; goals?: string[] }): string {
+  const parts = [b.title?.trim(), b.summary?.trim()].filter(Boolean) as string[];
+  if (b.features?.length) parts.push("Key features: " + b.features.slice(0, 6).join(", "));
+  if (b.goals?.length) parts.push("Goals: " + b.goals.slice(0, 4).join(", "));
+  const idea = parts.join(". ");
+  return idea.length >= 5 ? idea.slice(0, 3900) : (b.title || "Imported project");
 }

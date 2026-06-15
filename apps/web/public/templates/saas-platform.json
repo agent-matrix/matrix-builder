@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "template_id": "saas-platform",
+  "name": "SaaS Platform",
+  "summary": "Generic multi-tenant SaaS with accounts, roles, workspace settings, billing hooks, and analytics.",
+  "source_type": "template",
+  "goals": [
+    "Create a controlled SaaS application foundation",
+    "Support authenticated users and workspace-aware data",
+    "Prepare for deployment, testing, and validation"
+  ],
+  "users": [
+    "admin",
+    "workspace member",
+    "end user"
+  ],
+  "features": [
+    "account onboarding",
+    "workspace management",
+    "role-based access",
+    "dashboard",
+    "settings",
+    "audit-friendly events"
+  ],
+  "suggested_stack": [
+    "Next.js",
+    "FastAPI",
+    "PostgreSQL",
+    "Docker"
+  ],
+  "non_functional_requirements": [
+    "testable architecture",
+    "clear API boundaries",
+    "basic observability",
+    "secure defaults"
+  ],
+  "validation_focus": [
+    "required files present",
+    "allowed changes only",
+    "no dependency drift",
+    "tests pass"
+  ]
+}

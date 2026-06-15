@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "template_id": "dashboard",
+  "name": "Dashboard",
+  "summary": "Generic analytics dashboard with charts, filters, exports, and reporting views.",
+  "source_type": "template",
+  "goals": [
+    "Visualize data with charts and filters",
+    "Export and share reporting views",
+    "Keep data access controlled"
+  ],
+  "users": [
+    "analyst",
+    "manager",
+    "viewer"
+  ],
+  "features": [
+    "charts",
+    "filters",
+    "exports",
+    "reporting views",
+    "role-based access"
+  ],
+  "suggested_stack": [
+    "Next.js",
+    "FastAPI",
+    "PostgreSQL"
+  ],
+  "non_functional_requirements": [
+    "testable architecture",
+    "clear API boundaries",
+    "basic observability",
+    "secure defaults"
+  ],
+  "validation_focus": [
+    "required files present",
+    "allowed changes only",
+    "no dependency drift",
+    "tests pass"
+  ]
+}

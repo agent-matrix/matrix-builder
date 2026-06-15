@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import AuthControls from "../AuthControls";
 import BundleThumbnail from "../BundleThumbnail";
 import { AUTH_EVENT } from "@/lib/auth-token";
-import { BUILDS_EVENT, listBuilds, updatedLabel, type SavedBuild } from "@/lib/builds-store";
-import { thumbVariant, type BuildStatus } from "@/lib/saved-bundles";
+import { BUILDS_EVENT, listBuilds, removeBuild, updatedLabel, type SavedBuild } from "@/lib/builds-store";
+import { type BuildStatus } from "@/lib/saved-bundles";
 
 const I = {
   search: (<><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.2-3.2" /></>),
@@ -15,6 +15,7 @@ const I = {
   doc: (<><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4" /></>),
   plus: <path d="M12 5v14M5 12h14" />,
   shield: (<><path d="M12 2.5l7 3v5.5c0 4.3-2.9 7.4-7 9-4.1-1.6-7-4.7-7-9V5.5z" /><path d="M9 12l2 2 4-4.2" /></>),
+  trash: (<><path d="M4 7h16" /><path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" /><path d="M6 7l1 12a1 1 0 001 1h8a1 1 0 001-1l1-12" /><path d="M10 11v6M14 11v6" /></>),
 };
 function Ic({ d, size = 18 }: { d: ReactNode; size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>;
@@ -29,6 +30,17 @@ export default function MyBuildsPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [builds, setBuilds] = useState<SavedBuild[]>([]);
   const [loaded, setLoaded] = useState(false); // avoid flashing the empty state before the first read
+  const [pendingDelete, setPendingDelete] = useState<SavedBuild | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    const name = pendingDelete.name;
+    removeBuild(pendingDelete.id); // dispatches BUILDS_EVENT → list re-reads
+    setPendingDelete(null);
+    setToast(`Deleted “${name}”`);
+    window.setTimeout(() => setToast(null), 2600);
+  };
 
   // Builds live in localStorage, scoped to the signed-in account; re-read when they change
   // or the account switches so each user only ever sees their own private builds.
@@ -55,7 +67,7 @@ export default function MyBuildsPage() {
   return (
     <div className="mb-dark-page">
       <header className="mb-detail-bar"><div className="l-wrap dbar-in">
-        <div className="l-brand"><span className="gl">◇</span>Matrix Builder</div>
+        <a href="/matrix-builder" className="l-brand"><span className="gl">◇</span>Matrix Builder</a>
         <div className="dbar-r" style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
           <button className="l-newbuild" type="button" onClick={() => router.push("/matrix-builder")}><Ic d={I.plus} size={15} />New build</button>
           <AuthControls />
@@ -88,7 +100,19 @@ export default function MyBuildsPage() {
           <div className="lib-grid stag">
             {list.map((b) => (
               <article key={b.id} className="bundle-card" tabIndex={0} onClick={() => open(b.id)} onKeyDown={(e) => e.key === "Enter" && open(b.id)}>
-                <div className="bc-thumb"><BundleThumbnail variant={thumbVariant(b.id)} /><span className="bc-lock"><Ic d={I.lock} size={14} /></span></div>
+                <div className="bc-thumb">
+                  <BundleThumbnail seed={b.id} />
+                  <span className="bc-lock"><Ic d={I.lock} size={14} /></span>
+                  <button
+                    className="bc-del"
+                    type="button"
+                    aria-label={`Delete ${b.name}`}
+                    title="Delete build"
+                    onClick={(e) => { e.stopPropagation(); setPendingDelete(b); }}
+                  >
+                    <Ic d={I.trash} size={15} />
+                  </button>
+                </div>
                 <div className="bc-name">{b.name}</div>
                 <div className="bc-desc">{b.description}</div>
                 <div className={"bc-status " + b.status}>{b.status === "validated" ? <Ic d={I.check} size={13} /> : <span className="bc-sd" />}{STATUS_LABEL[b.status]}</div>
@@ -119,6 +143,22 @@ export default function MyBuildsPage() {
 
         <div className="lib-private reveal in"><span className="lp-ic"><Ic d={I.shield} size={20} /></span><div><b>Private by default.</b><span> Only you can see your builds.</span></div></div>
       </div>
+
+      {pendingDelete && (
+        <div className="auth-scrim" role="dialog" aria-modal="true" aria-label="Delete build" onMouseDown={(e) => { if (e.target === e.currentTarget) setPendingDelete(null); }}>
+          <div className="confirm-card">
+            <div className="confirm-ic"><Ic d={I.trash} size={22} /></div>
+            <h3 className="confirm-h">Delete this build?</h3>
+            <p className="confirm-d"><b>{pendingDelete.name}</b> will be permanently removed from this device. This can’t be undone.</p>
+            <div className="confirm-actions">
+              <button className="bo-btn" type="button" onClick={() => setPendingDelete(null)}>Cancel</button>
+              <button className="confirm-del" type="button" onClick={confirmDelete}><Ic d={I.trash} size={15} />Delete build</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && <div className="mb-toast" role="status">{toast}</div>}
     </div>
   );
 }
