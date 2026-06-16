@@ -76,4 +76,32 @@ def current_claims(
         ) from exc
 
 
-__all__ = ["AuthError", "verify_token", "user_id_from_token", "current_user_id", "current_claims"]
+# Sentinel owner for unauthenticated callers — lets guest/demo flows persist runs
+# without forcing login, while authenticated users get their own isolated history.
+GUEST_OWNER_ID = "guest"
+
+
+def optional_user_id(
+    authorization: str | None = Header(default=None),
+    settings: Settings = Depends(get_settings),
+) -> str:
+    """FastAPI dependency: the authenticated user id, or ``GUEST_OWNER_ID``.
+
+    Never raises — used by routes that should work signed-out but still scope
+    persisted history per user when a valid token is present.
+    """
+    try:
+        return user_id_from_token(_bearer(authorization), settings)
+    except AuthError:
+        return GUEST_OWNER_ID
+
+
+__all__ = [
+    "AuthError",
+    "verify_token",
+    "user_id_from_token",
+    "current_user_id",
+    "current_claims",
+    "optional_user_id",
+    "GUEST_OWNER_ID",
+]

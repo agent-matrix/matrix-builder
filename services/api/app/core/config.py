@@ -30,8 +30,15 @@ class Settings:
     agent_generator_mode: str = "mock"
     matrix_definitions_mode: str = "mock"
     matrixhub_mode: str = "dry-run"
+    # GitPilot cloud handoff. mode: "mock" (deterministic, no network) | "live".
+    # The A2A secret is server-side only and never reaches the browser.
+    gitpilot_mode: str = "mock"
+    gitpilot_base_url: str = "https://ruslanmv-gitpilot.hf.space"
+    gitpilot_a2a_secret: str = ""
+    gitpilot_run_ttl_seconds: int = 600
     signed_url_ttl_seconds: int = 172800
     signed_url_secret: str = "dev-only-change-me"
+    signed_url_enforce: bool = False
     guest_bundles_per_day: int = 3
     free_bundles_per_month: int = 20
     guest_bundle_ttl_seconds: int = 172800
@@ -90,7 +97,8 @@ def get_settings() -> Settings:
         rate_limit_enabled=_bool('RATE_LIMIT_ENABLED','true'), rate_limit_requests_per_minute=int(os.getenv('RATE_LIMIT_REQUESTS_PER_MINUTE','120')), rate_limit_burst=int(os.getenv('RATE_LIMIT_BURST','40')), rate_limit_bundle_requests_per_hour=int(os.getenv('RATE_LIMIT_BUNDLE_REQUESTS_PER_HOUR','20')),
         session_cookie_name=os.getenv('SESSION_COOKIE_NAME','matrix_builder_session'), session_ttl_seconds=int(os.getenv('SESSION_TTL_SECONDS','86400')), session_signing_key=os.getenv('SESSION_SIGNING_KEY','dev-only-session-key-change-before-production'),
         agent_generator_mode=os.getenv('AGENT_GENERATOR_MODE','mock'), matrix_definitions_mode=os.getenv('MATRIX_DEFINITIONS_MODE','mock'), matrixhub_mode=os.getenv('MATRIXHUB_MODE','dry-run'),
-        signed_url_ttl_seconds=int(os.getenv('SIGNED_URL_TTL_SECONDS','172800')), signed_url_secret=os.getenv('SIGNED_URL_SECRET','dev-only-change-me'), guest_bundles_per_day=int(os.getenv('GUEST_BUNDLES_PER_DAY','3')), free_bundles_per_month=int(os.getenv('FREE_BUNDLES_PER_MONTH','20')), guest_bundle_ttl_seconds=int(os.getenv('GUEST_BUNDLE_TTL_SECONDS','172800')), free_bundle_ttl_seconds=int(os.getenv('FREE_BUNDLE_TTL_SECONDS','2592000')),
+        gitpilot_mode=os.getenv('GITPILOT_MODE','mock'), gitpilot_base_url=os.getenv('GITPILOT_BASE_URL','https://ruslanmv-gitpilot.hf.space'), gitpilot_a2a_secret=os.getenv('GITPILOT_A2A_SECRET',''), gitpilot_run_ttl_seconds=int(os.getenv('GITPILOT_RUN_TTL_SECONDS','600')),
+        signed_url_ttl_seconds=int(os.getenv('SIGNED_URL_TTL_SECONDS','172800')), signed_url_secret=os.getenv('SIGNED_URL_SECRET','dev-only-change-me'), signed_url_enforce=_bool('SIGNED_URL_ENFORCE','false'), guest_bundles_per_day=int(os.getenv('GUEST_BUNDLES_PER_DAY','3')), free_bundles_per_month=int(os.getenv('FREE_BUNDLES_PER_MONTH','20')), guest_bundle_ttl_seconds=int(os.getenv('GUEST_BUNDLE_TTL_SECONDS','172800')), free_bundle_ttl_seconds=int(os.getenv('FREE_BUNDLE_TTL_SECONDS','2592000')),
         storage_backend=os.getenv('STORAGE_BACKEND','local'), storage_root=os.getenv('STORAGE_ROOT','.local/matrix-builder-storage'), public_api_base_url=os.getenv('PUBLIC_API_BASE_URL','http://localhost:8000/api/v1'),
         database_url=os.getenv('DATABASE_URL',''), db_pool_size=int(os.getenv('DB_POOL_SIZE','5')), db_max_overflow=int(os.getenv('DB_MAX_OVERFLOW','2')),
         supabase_jwt_secret=os.getenv('MB_JWT_SECRET') or os.getenv('SUPABASE_JWT_SECRET','dev-only-change-me'), supabase_jwt_algorithm=os.getenv('MB_JWT_ALGORITHM') or os.getenv('SUPABASE_JWT_ALGORITHM','HS256'), supabase_jwt_audience=os.getenv('MB_JWT_AUDIENCE') or os.getenv('SUPABASE_JWT_AUDIENCE','authenticated'), supabase_storage_bucket=os.getenv('SUPABASE_STORAGE_BUCKET','matrix-bundles'), google_client_id=os.getenv('GOOGLE_CLIENT_ID',''), resend_api_key=os.getenv('RESEND_API_KEY',''), email_from=os.getenv('EMAIL_FROM','Matrix Builder <onboarding@resend.dev>'), public_app_url=os.getenv('PUBLIC_APP_URL','https://build.matrixhub.io'), email_link_ttl_seconds=int(os.getenv('EMAIL_LINK_TTL_SECONDS','900')), app_origins=os.getenv('APP_ORIGINS',''),

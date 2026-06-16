@@ -5,14 +5,21 @@
 
 import type { CoderId } from "@/types/coder";
 
-export type CoderActionKind = "open" | "copy";
-export type CoderAction = { label: string; kind: CoderActionKind; url?: string };
+// "cloud" creates a run via the Matrix Builder backend (server signs + holds the
+// secret); "local" probes a service the user runs on their machine and POSTs to
+// it (GitPilot only); "open"/"copy" stay clipboard-safe.
+export type CoderActionKind = "open" | "copy" | "local" | "cloud";
+// `toast` overrides the default "Prompt copied…" message for coders that want their own wording.
+export type CoderAction = { label: string; kind: CoderActionKind; url?: string; toast?: string };
 
 export type CoderActions = {
   title: string;
   description: string;
   primary: CoderAction;
   secondary?: CoderAction;
+  // Optional extra buttons rendered after `secondary`, before the shared "Download ZIP" action.
+  // Lets a first-class coder (e.g. GitPilot) offer more than two handoff paths.
+  extra?: CoderAction[];
   detailLabel: string;
 };
 
@@ -43,12 +50,34 @@ export const CODER_ACTIONS: Record<CoderId, CoderActions> = {
     secondary: { label: "Copy Cursor prompt", kind: "copy" },
     detailLabel: "Give Cursor more detail",
   },
+  // GitPilot is the Matrix-native AI coder, so it gets its own first-class actions (no Claude/Codex
+  // wording). Batch 1 is UI-only: every action copies the controlled prompt and opens/guides — no
+  // service call yet. The local bridge (health probe + POST) and the cloud run API land in Batch 3+.
   gitpilot: {
     title: "Send to GitPilot",
     description:
-      "Send the controlled Matrix Bundle prompt to GitPilot — it can plan, code, run tests, and review through its multi-agent workflow.",
-    primary: { label: "Open GitPilot Web", kind: "open", url: "https://huggingface.co/spaces/ruslanmv/gitpilot" },
-    secondary: { label: "Copy GitPilot prompt", kind: "copy" },
+      "GitPilot can read the signed Matrix Bundle, plan the work, implement the task, run tests, and return a controlled diff.",
+    primary: {
+      label: "Send to GitPilot",
+      kind: "cloud",
+    },
+    secondary: {
+      label: "Send to local GitPilot",
+      kind: "local",
+    },
+    extra: [
+      {
+        label: "Open GitPilot Web",
+        kind: "open",
+        url: "https://huggingface.co/spaces/ruslanmv/gitpilot",
+        toast: "GitPilot prompt copied. Paste it into GitPilot to start.",
+      },
+      {
+        label: "Copy GitPilot prompt",
+        kind: "copy",
+        toast: "GitPilot prompt copied to clipboard.",
+      },
+    ],
     detailLabel: "Give GitPilot more detail",
   },
   "ibm-bob": {
