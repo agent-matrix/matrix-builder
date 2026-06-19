@@ -1492,3 +1492,190 @@ button,select,a{-webkit-tap-highlight-color:transparent;touch-action:manipulatio
 .mb-src-regen:hover{border-color:rgba(83,243,157,.45);color:#eafff4}
 .mb-src-regen svg{color:var(--grn-bright)}
 @media(max-width:640px){.mb-src-idea,.mb-src-edit{max-width:none;flex:1 1 100%;min-width:0}}
+
+/* ============================================================================
+   Blueprint Details — a calm, premium dark planning room (see BlueprintDetails)
+   ============================================================================ */
+/* Card secondary action: keep cards clean — Details is a quiet link, Choose stays primary. */
+.cand-actions{margin-top:6px;display:flex;align-items:center;gap:10px}
+.cand-actions .cand-choose{margin-top:0;flex:1}
+.cand-details{flex:none;background:transparent;border:1px solid var(--bd-light);color:var(--tx-muted);border-radius:11px;min-height:44px;padding:0 14px;font-weight:600;cursor:pointer;transition:.15s}
+.cand-details:hover{border-color:var(--grn);color:var(--grn-deep)}
+
+/* Full-bleed dark surface */
+.bd-surface{background:linear-gradient(165deg,var(--bg-dark-2),var(--bg-dark) 60%);min-height:calc(100vh - 60px);color:#dff1e6}
+.bd-page{max-width:1180px}
+.bd-crumb{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:#7fb8a0;margin-bottom:14px}
+.bd-crumb .bd-step{color:var(--grn-bright)}
+.bd-crumb .bd-sep{opacity:.4}
+.bd-crumb .bd-cur{color:#eafff4}
+.bd-head{margin-bottom:22px}
+.bd-h1{font-family:var(--serif);font-size:clamp(28px,4vw,40px);line-height:1.08;color:#fff;margin:0 0 10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.bd-rec{font-family:var(--sans);font-size:12px;font-weight:700;color:var(--bg-dark);background:var(--grn-bright);border-radius:999px;padding:5px 11px}
+.bd-lede{color:#a9cbbb;font-size:16px;max-width:70ch;margin:0 0 14px}
+.bd-pills{display:flex;flex-wrap:wrap;gap:8px}
+.bd-page .mb-tag{background:rgba(255,255,255,.05);color:#cfe8db;border:1px solid rgba(120,200,160,.18)}
+.bd-page .mb-tag.n{background:rgba(255,255,255,.04);color:#9bb8aa}
+.bd-page .mb-tag.bd-ai{background:rgba(34,200,120,.16);color:var(--grn-bright);border-color:rgba(34,200,120,.35)}
+.bd-page .mb-tag.bd-lock{display:inline-flex;align-items:center;gap:5px}
+
+.bd-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:20px;align-items:start}
+.bd-col{display:flex;flex-direction:column;gap:18px}
+.bd-card{background:rgba(255,255,255,.035);border:1px solid rgba(120,200,160,.16);border-radius:18px;padding:20px 22px;backdrop-filter:blur(6px)}
+.bd-card-h{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.bd-card-h svg{color:var(--grn-bright)}
+.bd-card-h h3{font-size:16px;font-weight:700;color:#fff;margin:0}
+.bd-card-sub{margin-left:auto;font-family:var(--mono);font-size:11px;color:#8aae9d}
+.bd-p{color:#bcd8c9;font-size:14.5px;margin:0 0 14px}
+.bd-ov,.bd-brain-grid{display:flex;flex-direction:column;gap:12px}
+.bd-ov>div,.bd-brain-grid>div{display:flex;flex-direction:column;gap:3px}
+.bd-ov-k{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#7fb8a0}
+.bd-ov-v{color:#dbeee3;font-size:14px}
+
+/* Batches — thin, elegant ordered rows */
+.bd-batches{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.bd-batch{display:flex;gap:14px;padding:14px;border-radius:13px;background:rgba(0,0,0,.18);border:1px solid rgba(120,200,160,.10);border-left:2px solid var(--grn)}
+.bd-batch-n{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--grn-bright);flex:none;width:26px;text-align:center;padding-top:1px}
+.bd-batch-body{flex:1;min-width:0}
+.bd-batch-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bd-batch-name{font-weight:700;color:#eafff4;font-size:14.5px}
+.bd-batch-status{font-family:var(--mono);font-size:10.5px;color:#86a99a;border:1px solid rgba(120,200,160,.18);border-radius:999px;padding:2px 8px;flex:none}
+.bd-batch-purpose{color:#a9cbbb;font-size:13.5px;margin:5px 0 8px}
+.bd-batch-meta{display:flex;flex-wrap:wrap;gap:6px}
+.bd-batch-tag{font-family:var(--mono);font-size:10.5px;color:#8fb3a4;background:rgba(255,255,255,.04);border:1px solid rgba(120,200,160,.12);border-radius:7px;padding:3px 7px}
+
+/* Design Brain */
+.bd-brain{border-color:rgba(138,99,210,.35);background:linear-gradient(180deg,rgba(138,99,210,.10),rgba(255,255,255,.03))}
+.bd-brain-ic{font-size:16px}
+
+/* Talk to blueprint */
+.bd-chat-sub{margin:-6px 0 12px}
+.bd-save{margin-left:auto;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:rgba(34,200,120,.14);border:1px solid rgba(34,200,120,.3);color:var(--grn-bright);cursor:pointer;transition:.15s}
+.bd-save:hover{background:rgba(34,200,120,.24)}
+.bd-chat-log{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;max-height:230px;overflow-y:auto}
+.bd-msg{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:11px;background:rgba(0,0,0,.2)}
+.bd-msg.user{background:rgba(34,200,120,.10)}
+.bd-msg-role{font-family:var(--mono);font-size:10.5px;color:#8aae9d}
+.bd-msg-text{color:#dbeee3;font-size:14px}
+.bd-composer{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.25);border:1px solid rgba(120,200,160,.18);border-radius:13px;padding:6px 6px 6px 14px}
+.bd-composer:focus-within{border-color:var(--grn)}
+.bd-composer-input{flex:1;background:transparent;border:0;outline:0;color:#eafff4;font-size:14.5px;min-height:36px}
+.bd-composer-input::placeholder{color:#7c9a8c}
+.bd-composer-send{flex:none;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--grn);color:#fff;border:0;cursor:pointer;transition:.15s}
+.bd-composer-send:disabled{opacity:.4;cursor:default}
+
+/* Architecture nodes */
+.bd-arch{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bd-arch-node{display:flex;flex-direction:column;gap:3px;padding:12px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid rgba(120,200,160,.16)}
+.bd-arch-ic{color:var(--grn-bright)}
+.bd-arch-label{font-weight:700;color:#eafff4;font-size:13.5px}
+.bd-arch-sub{font-family:var(--mono);font-size:10.5px;color:#88ab9c}
+
+/* File plan */
+.bd-files{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+.bd-file{display:flex;flex-direction:column;gap:2px}
+.bd-file-path{font-family:var(--mono);font-size:12.5px;color:var(--grn-bright)}
+.bd-file-why{font-size:13px;color:#a9cbbb}
+
+/* Matrix rules */
+.bd-rules{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px}
+.bd-rules li{display:flex;align-items:center;gap:9px;color:#cfe8db;font-size:13.5px}
+.bd-rules svg{color:var(--grn-bright);flex:none}
+
+/* Actions */
+.bd-actions{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.bd-back{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:12px;background:transparent;border:1px solid rgba(120,200,160,.22);color:#cfe8db;font-weight:600;cursor:pointer;transition:.15s}
+.bd-back:hover{border-color:var(--grn);color:#fff}
+.bd-choose{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:52px;border-radius:13px;background:var(--grn);color:#fff;border:0;font-weight:700;font-size:15.5px;cursor:pointer;box-shadow:0 18px 40px -18px rgba(34,200,120,.8);transition:transform .15s,background .15s}
+.bd-choose:hover{transform:translateY(-1px);background:var(--grn-bright)}
+
+@media (max-width:880px){
+  .bd-grid{grid-template-columns:1fr}
+  .bd-arch{grid-template-columns:1fr 1fr}
+}
+
+/* Settings — Matrix Designer toggle badge */
+.md-badge{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--grn-deep);background:var(--grn-tint);border:1px solid rgba(18,138,82,.2);border-radius:999px;padding:2px 7px;margin-left:6px;vertical-align:middle}
+
+/* Blueprint Details — batch-06/07 polish (unsaved badge, dependency graph, busy) */
+.bd-unsaved{margin-left:auto;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#ffd27f;background:rgba(255,176,0,.14);border:1px solid rgba(255,176,0,.35);border-radius:999px;padding:2px 8px}
+.bd-chat .bd-card-h .bd-unsaved + .bd-save{margin-left:8px}
+.bd-save.on{background:rgba(34,200,120,.26);border-color:var(--grn)}
+.bd-depgraph{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.bd-dep{display:inline-flex;align-items:center;gap:4px}
+.bd-dep-arrow{color:#6f9a88}
+.bd-dep-node{font-family:var(--mono);font-size:10.5px;color:var(--grn-bright);background:rgba(34,200,120,.10);border:1px solid rgba(34,200,160,.22);border-radius:6px;padding:1px 6px}
+.bd-typing{color:#8aae9d;font-style:italic}
+
+/* ============================================================================
+   Blueprint Details — image-exact redesign (sticky sidebar, calm Apple/Linear feel)
+   ============================================================================ */
+.bd-grid{align-items:start}
+.bd-aside{position:sticky;top:76px;align-self:start;padding-right:2px}
+
+/* Overview — narrative left, scope/quality/outcome right */
+.bd-ov-split{display:grid;grid-template-columns:1.5fr 1fr;gap:30px}
+.bd-ov-split .bd-p{margin:0}
+.bd-ov{display:flex;flex-direction:column;gap:16px}
+.bd-ov-scope{display:flex;flex-direction:column;gap:4px}
+.bd-ov-row{display:flex;gap:30px}
+.bd-ov-row>div{display:flex;flex-direction:column;gap:4px}
+@media (max-width:880px){ .bd-ov-split{grid-template-columns:1fr} }
+
+/* Build batches — thin rows, description inline, status pinned right */
+.bd-batch{align-items:center}
+.bd-batch-body{display:flex;flex-direction:column;gap:8px}
+.bd-batch-top{display:flex;align-items:baseline;gap:12px}
+.bd-batch-desc{color:#9bbcad;font-size:13px;font-weight:400}
+.bd-batch-status{margin-left:auto;display:inline-flex;align-items:center;gap:7px;flex:none;font-family:var(--mono);font-size:11px;color:#8fb3a4}
+.bd-status-dot{width:13px;height:13px;border-radius:50%;border:1.5px solid rgba(143,179,164,.5);position:relative}
+.bd-status-dot::after{content:"";position:absolute;left:3px;right:3px;top:5.5px;height:1.5px;background:rgba(143,179,164,.7)}
+
+/* Card "View details" link */
+.bd-card-link{margin-top:14px;display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:var(--grn-bright);font-size:13px;font-weight:600;cursor:pointer;padding:0}
+.bd-card-link:hover{color:#fff}
+
+/* Architecture nodes — stacked title row + subtitle */
+.bd-arch-node{gap:6px}
+.bd-arch-top{display:flex;align-items:center;gap:8px}
+.bd-arch-ic{color:var(--grn-bright);display:grid;place-items:center}
+
+/* Compact sidebar Design Brain */
+.bd-brain-k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#7fb8a0}
+.bd-brain-intent{margin:6px 0 0;color:#dbeee3;font-size:13.5px;line-height:1.5}
+.bd-brain-note{margin:10px 0 0;color:#9bbcad;font-size:12.5px}
+
+/* Chat — tabs header */
+.bd-chat-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.bd-chat-tabs{display:flex;gap:18px}
+.bd-tab{background:none;border:0;color:#7c9a8c;font-weight:600;font-size:14px;cursor:pointer;padding:0 0 8px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.bd-tab.on{color:#fff;border-bottom-color:var(--grn)}
+.bd-chat-empty{color:#7c9a8c;font-size:13.5px;margin:4px 0 0}
+
+/* Chat — messages with avatars (no bubbles, Claude/ChatGPT style) */
+.bd-chat-log{display:flex;flex-direction:column;gap:18px;margin-bottom:16px;max-height:340px;overflow-y:auto;padding-right:4px}
+.bd-msg{display:flex;gap:12px;align-items:flex-start;background:none;padding:0;border-radius:0}
+.bd-msg.user{background:none}
+.bd-msg-av{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:700;color:#dbeee3;background:rgba(255,255,255,.08);border:1px solid rgba(120,200,160,.2)}
+.bd-msg.blueprint .bd-msg-av{color:var(--grn-bright)}
+.bd-msg-body{display:flex;flex-direction:column;gap:4px;min-width:0}
+.bd-msg-head{display:flex;align-items:baseline;gap:9px}
+.bd-msg-role{font-weight:700;color:#eafff4;font-size:13.5px}
+.bd-msg-time{font-family:var(--mono);font-size:10.5px;color:#7c9a8c}
+.bd-msg-text{color:#c8e2d6;font-size:14px;line-height:1.5}
+
+/* Activity feed */
+.bd-activity{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.bd-activity-row{display:flex;align-items:center;gap:10px;color:#c8e2d6;font-size:13.5px}
+.bd-activity-dot{width:6px;height:6px;border-radius:50%;background:var(--grn-bright);flex:none}
+
+/* Composer — + button, ⌘↵ hint, send */
+.bd-composer{padding:8px 8px 8px 8px;gap:6px}
+.bd-composer-add{flex:none;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.05);border:1px solid rgba(120,200,160,.18);color:#cfe8db;cursor:pointer;transition:.15s}
+.bd-composer-add:hover{border-color:var(--grn);color:#fff}
+.bd-composer-input{padding-left:6px}
+.bd-kbd{flex:none;font-family:var(--mono);font-size:11px;color:#7c9a8c;background:rgba(255,255,255,.05);border:1px solid rgba(120,200,160,.16);border-radius:7px;padding:3px 8px}
+
+/* cascade fixes for the redesign */
+.bd-batch-status{border:0;padding:0;background:none;border-radius:0}
+.bd-msg-role{font-family:var(--sans)}

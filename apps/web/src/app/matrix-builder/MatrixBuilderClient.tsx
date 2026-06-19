@@ -12,6 +12,11 @@ import { createBundleFiles } from "@/lib/matrix-bundle";
 import { createBlueprintCandidates } from "@/lib/matrix-demo-data";
 import { toUiBundleFiles, toUiCandidates } from "@/lib/engine-map";
 import { briefToIdea, enhanceProjectBrief, enrichBlueprintCandidates, explainValidationFindings, isOllaBridgeAssistAvailable, type EnrichmentMap } from "@/lib/ai-provider-manager";
+import { isMatrixDesignerEnabled } from "@/lib/ai-settings-store";
+import { fetchBlueprintDetails, saveBlueprintDetails, type DesignerCandidate } from "@/lib/blueprint-client";
+import { getCapabilities } from "@/lib/capabilities";
+import { generateCandidates } from "@/lib/blueprint-engine";
+import { useBlueprintWorkspace } from "@/lib/blueprint-store";
 import UploadExistingPlanModal, { type UploadSelection } from "@/components/matrix-builder/UploadExistingPlanModal";
 import {
   downloadBundleZip,
@@ -54,7 +59,7 @@ import type { ProjectBriefContract } from "@/lib/workflow-types";
 import type { CoderId } from "@/types/coder";
 import type { ValidationReportContract } from "@/types/contracts";
 
-type Phase = "hero" | "scanning" | "candidates" | "bundle" | "submit" | "running" | "validation" | "timeline" | "complete";
+type Phase = "hero" | "scanning" | "candidates" | "details" | "bundle" | "submit" | "running" | "validation" | "timeline" | "complete";
 
 // Paths the AI coder reports as changed (parsed from the pasted result) → validated against the
 // contract. status defaults to "modified".
@@ -736,7 +741,7 @@ function LandingHero({ idea, setIdea, generate, onUpload }: { idea: string; setI
   );
 }
 
-function CandidateCard({ candidate, choose, enrichment }: { candidate: BlueprintCandidate; choose: (candidate: BlueprintCandidate) => void; enrichment?: { displayName?: string; displaySummary?: string } }) {
+function CandidateCard({ candidate, choose, details, enrichment }: { candidate: BlueprintCandidate; choose: (candidate: BlueprintCandidate) => void; details: (candidate: BlueprintCandidate) => void; enrichment?: { displayName?: string; displaySummary?: string } }) {
   // Display-only: the deterministic candidate still drives bundle generation. AI may only soften
   // the visible name/summary; an explicit badge tells the user the wording was AI-assisted.
   const name = enrichment?.displayName ?? candidate.name;
@@ -755,7 +760,19 @@ function CandidateCard({ candidate, choose, enrichment }: { candidate: Blueprint
         <span className="mb-tag n">{candidate.time}</span>
       </div>
       <div className="cand-stack">{candidate.stack.map((stack) => <span className="mb-tag" key={stack}>{stack}</span>)}</div>
-      <button className="cand-choose" type="button">Choose this <MatrixIcon size={16}>{icons.arrow}</MatrixIcon></button>
+      {/* Secondary action: inspect the full plan before choosing. Primary stays "Choose this". */}
+      <div className="cand-actions">
+        <button
+          className="cand-details"
+          type="button"
+          onClick={(e) => { e.stopPropagation(); details(candidate); }}
+        >
+          Details
+        </button>
+        <button className="cand-choose" type="button" onClick={(e) => { e.stopPropagation(); choose(candidate); }}>
+          Choose this <MatrixIcon size={16}>{icons.arrow}</MatrixIcon>
+        </button>
+      </div>
     </article>
   );
 }
@@ -1584,12 +1601,280 @@ function BuildComplete({
   );
 }
 
+// ---------------------------------------------------------------------------------------------
+// Blueprint Details — a calm planning room for one blueprint. Cards stay simple; this page answers
+// "what exactly will this path build?". All sections are derived client-side from the deterministic
+// candidate + the idea (no backend route yet); the Matrix contract is never changed here.
+// ---------------------------------------------------------------------------------------------
+
+// Map a Matrix Designer candidate card onto the UI's BlueprintCandidate shape.
+function designerToUiCandidate(dc: DesignerCandidate): BlueprintCandidate {
+  return {
+    id: dc.id as BlueprintCandidate["id"],
+    tier: dc.tier as BlueprintCandidate["tier"],
+    name: dc.title,
+    summary: dc.summary,
+    stack: dc.stack,
+    files: dc.file_count,
+    difficulty: dc.difficulty as BlueprintCandidate["difficulty"],
+    time: dc.estimate,
+    standards: [],
+    recommended: dc.recommended,
+  };
+}
+
+// Map an architecture-node name to one of the existing line icons.
+function archIcon(name: string): IconDefinition {
+  const s = name.toLowerCase();
+  if (/api|backend|service/.test(s)) return icons.cpu;
+  if (/data|db|postgres|mysql|storage|mongo/.test(s)) return icons.cube;
+  if (/worker|queue|job/.test(s)) return icons.refresh;
+  if (/deploy|ci|pages|docker|kubernetes/.test(s)) return icons.shield;
+  if (/dashboard|admin|ui|doc/.test(s)) return icons.doc;
+  return icons.layers;
+}
+
+function BlueprintDetails({ candidate, subject, idea, designerOn, aiAssist, onBack, onChoose, onNotice }: {
+  candidate: BlueprintCandidate; subject: string; idea: string; designerOn: boolean; aiAssist: boolean;
+  onBack: () => void; onChoose: () => void; onNotice: (message: string) => void;
+}) {
+  // C0/C1/C2 — the workspace is a single client state object mutated by the in-browser engine.
+  // No fetch on the render path: generate + chat run locally, so the page is instant and works
+  // fully offline. (The server/LLM are optional enhancements, layered on via ws.setData later.)
+  const ws = useBlueprintWorkspace(candidate.id, idea);
+  const { data, messages, busy, dirty } = ws;
+  const [draft, setDraft] = useState("");
+  const [chatTab, setChatTab] = useState<"chat" | "activity">("chat");
+
+  // C5 — optional server sync behind a capability check. With no backend (offline / static
+  // hosting) this is a no-op and the UX is identical; with a backend it syncs the richer output.
+  useEffect(() => {
+    let active = true;
+    void getCapabilities().then((cap) => {
+      if (!active || !cap.server) return;            // no server → stay fully local
+      if (ws.data.chat_history.length > 0) return;   // don't clobber local edits
+      void fetchBlueprintDetails(candidate.id, idea, { useDesigner: designerOn })
+        .then((d) => { if (active) ws.setData(d); })
+        .catch(() => undefined);
+    });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidate.id, idea, designerOn]);
+
+  function send() {
+    const text = draft.trim();
+    if (!text) return;
+    ws.applyInstruction(text); // instant, local, no network — sections patch from the engine
+    setDraft("");
+  }
+
+  function save() {
+    if (!dirty) { onNotice("No changes to save."); return; }
+    // Local state is already saved (localStorage). Server persistence is gated on a capability
+    // check so offline makes zero requests.
+    void getCapabilities().then((cap) => {
+      if (cap.server) void saveBlueprintDetails(candidate.id, idea, data).catch(() => undefined);
+    });
+    ws.markSaved();
+    onNotice("Blueprint updated.");
+  }
+
+  // Activity feed derived from the live state — what the engine changed.
+  const activity = [
+    `${data.batches.length} build batches planned`,
+    `${data.architecture.length} architecture components`,
+    `${data.file_plan.length} planned files`,
+    ...messages.filter((m) => m.role === "blueprint").map((m) => m.content),
+  ];
+
+  const batches = data.batches;
+  const architecture = data.architecture;
+  const filePlan = data.file_plan;
+
+  return (
+    <div className="bd-surface">
+    <div className="l-wrap mb-page bd-page">
+      <div className="bd-crumb reveal">
+        <span className="bd-step">Step 1 · Choose a blueprint</span>
+        <span className="bd-sep">/</span><span>{candidate.tier}</span>
+        <span className="bd-sep">/</span><span className="bd-cur">Details</span>
+      </div>
+
+      <div className="bd-head reveal">
+        <div className="bd-head-main">
+          <h1 className="bd-h1">{candidate.name}{candidate.recommended && <span className="bd-rec">Recommended</span>}</h1>
+          <p className="bd-lede">{candidate.summary}</p>
+          <div className="bd-pills">
+            <span className="mb-tag">Stack: {candidate.stack.join(", ")}</span>
+            <span className="mb-tag n">{candidate.files} files</span>
+            <span className="mb-tag n">{candidate.difficulty}</span>
+            <span className="mb-tag n">{candidate.time}</span>
+            {aiAssist && <span className="mb-tag bd-ai">AI assist</span>}
+            <span className="mb-tag bd-lock"><MatrixIcon size={12}>{icons.shield}</MatrixIcon> RMD locked</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="bd-grid">
+        {/* LEFT — overview, batches, chat (history + bottom composer) */}
+        <div className="bd-col">
+          <section className="bd-card reveal">
+            <div className="bd-card-h"><MatrixIcon size={16}>{icons.doc}</MatrixIcon><h3>Blueprint overview</h3></div>
+            <div className="bd-ov-split">
+              <p className="bd-p">{data.overview}</p>
+              <div className="bd-ov">
+                <div className="bd-ov-scope"><span className="bd-ov-k">Scope</span><span className="bd-ov-v">{idea}</span></div>
+                <div className="bd-ov-row">
+                  <div><span className="bd-ov-k">Quality</span><span className="bd-ov-v">{candidate.tier}</span></div>
+                  <div><span className="bd-ov-k">Outcome</span><span className="bd-ov-v">{data.acceptance_criteria[0] ?? "builds and runs"}</span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="bd-card reveal">
+            <div className="bd-card-h"><MatrixIcon size={16}>{icons.layers}</MatrixIcon><h3>Build batches</h3>
+              <span className="bd-card-sub">{`${batches.length} controlled batches · built in order`}</span></div>
+            <ol className="bd-batches">
+              {batches.map((b, i) => (
+                <li className="bd-batch" key={b.id}>
+                  <span className="bd-batch-n">{String(i + 1).padStart(2, "0")}</span>
+                  <div className="bd-batch-body">
+                    <div className="bd-batch-top">
+                      <span className="bd-batch-name">{b.name}</span>
+                      <span className="bd-batch-desc">{b.purpose}</span>
+                    </div>
+                    <div className="bd-batch-meta">
+                      <span className="bd-batch-tag">Allowed: {b.allowed_files.slice(0, 2).join(", ")}{b.allowed_files.length > 2 ? "…" : ""}</span>
+                      {b.acceptance_criteria[0] && <span className="bd-batch-tag">Accept: {b.acceptance_criteria[0]}</span>}
+                    </div>
+                  </div>
+                  <span className="bd-batch-status"><span className="bd-status-dot" />Planned</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          {/* Chat — history + always-visible bottom composer (ChatGPT/Claude style) */}
+          <section className="bd-card reveal bd-chat">
+            <div className="bd-chat-head">
+              <div className="bd-chat-tabs">
+                <button className={`bd-tab${chatTab === "chat" ? " on" : ""}`} type="button" onClick={() => setChatTab("chat")}>Chat</button>
+                <button className={`bd-tab${chatTab === "activity" ? " on" : ""}`} type="button" onClick={() => setChatTab("activity")}>Activity</button>
+              </div>
+              {dirty && <span className="bd-unsaved" title="You have unsaved edits">Unsaved</span>}
+              <button className={`bd-save${dirty ? " on" : ""}`} type="button" onClick={save} title="Save latest edits" aria-label="Save latest edits">
+                <MatrixIcon size={15}>{icons.download}</MatrixIcon>
+              </button>
+            </div>
+
+            <div className="bd-chat-log">
+              {chatTab === "chat" ? (
+                messages.length === 0 ? (
+                  <p className="bd-chat-empty">Ask Blueprints to refine the architecture, batches, or scope — the plan updates live.</p>
+                ) : (
+                  messages.map((m) => (
+                    <div className={`bd-msg ${m.role}`} key={m.id}>
+                      <span className="bd-msg-av">{m.role === "user" ? "M" : <MatrixIcon size={14}>{icons.cube}</MatrixIcon>}</span>
+                      <div className="bd-msg-body">
+                        <div className="bd-msg-head"><span className="bd-msg-role">{m.role === "user" ? "You" : "Matrix Builder"}</span>{m.time && <span className="bd-msg-time">{m.time}</span>}</div>
+                        <div className="bd-msg-text">{m.content}</div>
+                      </div>
+                    </div>
+                  ))
+                )
+              ) : (
+                <ul className="bd-activity">
+                  {activity.map((a, i) => (
+                    <li className="bd-activity-row" key={`${i}-${a}`}><span className="bd-activity-dot" />{a}</li>
+                  ))}
+                </ul>
+              )}
+              {busy && chatTab === "chat" && (
+                <div className="bd-msg blueprint"><span className="bd-msg-av"><MatrixIcon size={14}>{icons.cube}</MatrixIcon></span>
+                  <div className="bd-msg-body"><div className="bd-msg-head"><span className="bd-msg-role">Matrix Builder</span></div><div className="bd-msg-text bd-typing">thinking…</div></div></div>
+              )}
+            </div>
+
+            <div className="bd-composer">
+              <button className="bd-composer-add" type="button" aria-label="Attach" title="Attach"><MatrixIcon size={16}>{icons.plus}</MatrixIcon></button>
+              <input className="bd-composer-input" value={draft} placeholder="Describe the change you want…" disabled={busy}
+                onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") send(); }} aria-label="Describe the change you want" />
+              <span className="bd-kbd" aria-hidden="true">⌘↵</span>
+              <button className="bd-composer-send" type="button" onClick={send} aria-label="Send" disabled={busy || !draft.trim()}>
+                <MatrixIcon size={16}>{icons.send}</MatrixIcon>
+              </button>
+            </div>
+          </section>
+        </div>
+
+        {/* RIGHT — sticky sidebar: architecture, file plan, matrix rules, design brain, actions */}
+        <aside className="bd-col bd-aside">
+          <section className="bd-card reveal">
+            <div className="bd-card-h"><MatrixIcon size={16}>{icons.git}</MatrixIcon><h3>Architecture</h3></div>
+            <div className="bd-arch">
+              {architecture.map((n) => (
+                <div className="bd-arch-node" key={n.name}>
+                  <span className="bd-arch-top"><span className="bd-arch-ic"><MatrixIcon size={15}>{archIcon(n.name)}</MatrixIcon></span><span className="bd-arch-label">{n.name}</span></span>
+                  <span className="bd-arch-sub">{n.description}</span>
+                </div>
+              ))}
+            </div>
+            <button className="bd-card-link" type="button" onClick={() => onNotice("Architecture detail view coming soon.")}>View details of Architecture <MatrixIcon size={13}>{icons.arrow}</MatrixIcon></button>
+          </section>
+
+          <section className="bd-card reveal">
+            <div className="bd-card-h"><MatrixIcon size={16}>{icons.doc}</MatrixIcon><h3>File plan</h3></div>
+            <ul className="bd-files">
+              {filePlan.map((f) => (
+                <li className="bd-file" key={f.path}><code className="bd-file-path">{f.path}</code><span className="bd-file-why">{f.description}</span></li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="bd-card reveal">
+            <div className="bd-card-h"><MatrixIcon size={16}>{icons.shield}</MatrixIcon><h3>Matrix rules</h3></div>
+            <ul className="bd-rules">
+              {data.matrix_rules.map((rule) => (
+                <li key={rule}><MatrixIcon size={14}>{icons.check}</MatrixIcon> {rule.replace(/^RMD-\d+:\s*/, "")}</li>
+              ))}
+            </ul>
+          </section>
+
+          {designerOn && (
+            <section className="bd-card reveal bd-brain">
+              <div className="bd-card-h"><span className="bd-brain-ic">🧠</span><h3>Design Brain</h3>
+                <span className="bd-card-sub">Matrix Designer</span></div>
+              <span className="bd-brain-k">Product intent</span>
+              <p className="bd-brain-intent">{subject} — designed before batching so every batch fits the whole.</p>
+              {(data.risks.length > 0 || data.assumptions.length > 0) && (
+                <p className="bd-brain-note">{[...data.risks, ...data.assumptions].slice(0, 2).join(" · ")}</p>
+              )}
+              <button className="bd-card-link" type="button" onClick={() => setChatTab("activity")}>View details <MatrixIcon size={13}>{icons.arrow}</MatrixIcon></button>
+            </section>
+          )}
+
+          <div className="bd-actions">
+            <button className="bd-back" type="button" onClick={onBack}><MatrixIcon size={15}>{icons.back}</MatrixIcon> Back to blueprints</button>
+            <button className="bd-choose" type="button" onClick={onChoose}>Choose this blueprint <MatrixIcon size={16}>{icons.arrow}</MatrixIcon></button>
+          </div>
+        </aside>
+      </div>
+    </div>
+    </div>
+  );
+}
+
 export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: InitialBuild } = {}) {
   // When reopened from My Builds we land directly on the active build screen, reconstructed
   // from the persisted build, so the user keeps full context (no state is lost).
   const [phase, setPhase] = useState<Phase>(initialBuild ? "bundle" : "hero");
   const [idea, setIdea] = useState(initialBuild?.idea ?? "");
   const [scanIndex, setScanIndex] = useState(0);
+  // Blueprint Details view — the candidate being inspected, and whether the Matrix Designer
+  // enhancement is on (read from settings when the user opens Details, so it reflects the toggle).
+  const [detailsCandidate, setDetailsCandidate] = useState<BlueprintCandidate | null>(null);
+  const [designerOn, setDesignerOn] = useState(false);
   const [candidates, setCandidates] = useState<BlueprintCandidate[]>([]);
   const [candidatesLoaded, setCandidatesLoaded] = useState(false);
   // Optional Internal AI: display-only copy overrides keyed by candidate id; the deterministic
@@ -1689,6 +1974,11 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
       }
       setCandidates(list);
       setCandidatesLoaded(true);
+      // Matrix Designer toggle ON: source the 3 cards from the in-browser engine (no network).
+      // The server is an optional enhancement; the client engine is the primary, instant path.
+      if (isMatrixDesignerEnabled()) {
+        setCandidates(generateCandidates(ideaText).map(designerToUiCandidate));
+      }
       // Optional Internal AI assist (fail-open): improve display copy only, after candidates show.
       void enrichBlueprintCandidates(
         ideaText,
@@ -1712,6 +2002,14 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
   }, [phase, scanIndex, candidatesLoaded]);
 
   // Step 2 — generate the chosen candidate's Matrix Bundle on the engine (the real file manifest).
+  // Open the premium Details view for a candidate (read the Designer toggle fresh each time).
+  const openDetails = (candidate: BlueprintCandidate) => {
+    setDetailsCandidate(candidate);
+    setDesignerOn(isMatrixDesignerEnabled());
+    setPhase("details");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const choose = (candidate: BlueprintCandidate) => {
     const localId = generateBundleId();
     setChosen(candidate);
@@ -2098,9 +2396,25 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
               </details>
             )}
             <div className="cand-grid stag">
-              {candidates.map((candidate) => <CandidateCard key={candidate.id} candidate={candidate} choose={choose} enrichment={enrichedById[candidate.id]} />)}
+              {candidates.map((candidate) => <CandidateCard key={candidate.id} candidate={candidate} choose={choose} details={openDetails} enrichment={enrichedById[candidate.id]} />)}
             </div>
           </div>
+        </>
+      )}
+
+      {phase === "details" && detailsCandidate && (
+        <>
+          <BuilderBar onNew={reset} onNotice={showToast} />
+          <BlueprintDetails
+            candidate={detailsCandidate}
+            subject={headingSubject}
+            idea={effectiveIdea}
+            designerOn={designerOn}
+            aiAssist={isOllaBridgeAssistAvailable()}
+            onBack={() => setPhase("candidates")}
+            onChoose={() => choose(detailsCandidate)}
+            onNotice={showToast}
+          />
         </>
       )}
 

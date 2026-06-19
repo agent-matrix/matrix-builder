@@ -47,11 +47,22 @@
       "id": "https://matrixhub.io/schemas/matrix-builder/publication.schema.json",
       "title": "publication",
       "path": "packages/contracts/schemas/publication.schema.json"
+    },
+    {
+      "id": "https://matrixhub.io/schemas/matrix-designer/design-bundle.schema.json",
+      "title": "design-bundle",
+      "path": "packages/contracts/schemas/design-bundle.schema.json"
+    },
+    {
+      "id": "https://matrixhub.io/schemas/matrix-designer/blueprint-details.schema.json",
+      "title": "blueprint-details",
+      "path": "packages/contracts/schemas/blueprint-details.schema.json"
     }
   ],
   "owned_by": [
     "matrix-builder",
-    "agent-generator"
+    "agent-generator",
+    "matrix-designer"
   ],
   "source_of_truth": "packages/contracts/schemas"
 }

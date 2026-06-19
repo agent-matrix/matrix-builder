@@ -30,7 +30,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/services/api \
     AGENT_GENERATOR_MODE=sdk MATRIX_DEFINITIONS_MODE=sdk \
     # Public, absolute API base so the coder prompt's "Fetch the Matrix Bundle" link is a real,
     # fetchable signed URL (build.matrixhub.io proxies /api/builder/* to this backend).
-    PUBLIC_API_BASE_URL=https://build.matrixhub.io/api/builder/api/v1
+    PUBLIC_API_BASE_URL=https://build.matrixhub.io/api/builder/api/v1 \
+    # Matrix Designer (the brain) runs as an internal service in this same container (started by
+    # start.sh). The control plane calls it here and falls back to deterministic generation if down.
+    MATRIX_DESIGNER_PORT=8077 MATRIX_DESIGNER_URL=http://127.0.0.1:8077
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv \
   && rm -rf /var/lib/apt/lists/* \

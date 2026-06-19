@@ -36,3 +36,10 @@ httpx>=0.27
 jsonschema>=4.22
 ruff>=0.6
 mypy>=1.11
+
+# --- Matrix Designer (the brain) — installed alongside on Hugging Face ---
+# When this image is built (HF Space / Docker), Matrix Designer is installed and its
+# internal HTTP service is started by start.sh; the control plane reaches it at
+# MATRIX_DESIGNER_URL (default http://127.0.0.1:8077) and falls back to deterministic
+# generation if it's unavailable.
+matrix-designer[service] @ git+https://github.com/agent-matrix/matrix-designer.git

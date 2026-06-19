@@ -39,6 +39,7 @@ RLS_TABLES: tuple[str, ...] = (
     "artifacts",
     "run_events",
     "gitpilot_runs",
+    "design_bundles",
 )
 
 
@@ -265,6 +266,28 @@ class GitPilotRun(Base):
     )
 
 
+class DesignBundleRecord(Base):
+    """A saved Matrix Designer Blueprint Details + chat for a build (batch-10).
+
+    Owner-scoped like every other workflow table. Keyed by (owner, build, candidate)
+    so reopening a build restores the same blueprint and Talk-to-blueprint history.
+    """
+
+    __tablename__ = "design_bundles"
+    id: Mapped[str] = _pk()
+    owner_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    build_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    candidate_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    idea: Mapped[str] = mapped_column(Text, default="")
+    details: Mapped[dict] = mapped_column(JSONB, default=dict)
+    chat_history: Mapped[list] = mapped_column(JSONB, default=list)
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    __table_args__ = (UniqueConstraint("owner_id", "build_id", "candidate_id", name="uq_design_bundle_owner_build_cand"),)
+
+
 __all__ = [
     "Base",
     "RLS_TABLES",
@@ -279,4 +302,5 @@ __all__ = [
     "RunEvent",
     "Artifact",
     "GitPilotRun",
+    "DesignBundleRecord",
 ]
