@@ -57,6 +57,16 @@ export default function AiConfigurationSection() {
     setDefaultCoder(next);
   }
 
+  // Optional Matrix Designer enhancement — persist immediately, like the default-coder preference.
+  function onToggleMatrixDesigner(enabled: boolean) {
+    setSettings((s) => {
+      const next = { ...s, matrixDesigner: { ...s.matrixDesigner, enabled } };
+      saveAISettings(next);
+      return next;
+    });
+    setSaveNote(null);
+  }
+
   const ob = settings.ollabridge;
   const localhost = isLocalhostLike(ob.baseUrl);
 
@@ -187,6 +197,28 @@ export default function AiConfigurationSection() {
       {settings.provider === "none" && (
         <p className="ai-help">AI assist is off. Matrix Builder will run deterministically.</p>
       )}
+
+      {/* Optional enhancement: Matrix Designer — the design brain. Default OFF. */}
+      <div className="ai-divider" />
+      <div className="settings-field-group">
+        <label className="ai-toggle md-toggle">
+          <input
+            type="checkbox"
+            checked={settings.matrixDesigner.enabled}
+            onChange={(e) => onToggleMatrixDesigner(e.target.checked)}
+          />
+          <span>
+            🧠 Matrix Designer <span className="md-badge">optional</span>
+            <em className="ai-toggle-hint">
+              {settings.matrixDesigner.enabled
+                ? settings.provider === "ollabridge" && settings.mode === "assisted"
+                  ? "On — uses your Internal AI (OllaBridge) to design the full batch plan and coder prompts for the next stages. The Matrix contract is unchanged."
+                  : "On — but it stays deterministic until Internal AI (OllaBridge) assist above is enabled; then it designs the batch plan with AI."
+                : "Off — the design brain that plans every batch before you build. Turn on to inspect a full plan on each blueprint’s Details page."}
+            </em>
+          </span>
+        </label>
+      </div>
 
       {settings.provider === "ollabridge" && (
         <>

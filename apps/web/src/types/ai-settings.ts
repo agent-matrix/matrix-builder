@@ -23,10 +23,18 @@ export type OllaBridgeSettings = {
   deviceId: string;
 };
 
+// Optional enhancement: the "design brain". When enabled AND Internal AI (OllaBridge) assist is on,
+// Matrix Builder uses the AI to design the full batch plan + the coder prompts for the next stages.
+// Default OFF — it never changes the deterministic Matrix contract.
+export type MatrixDesignerSettings = {
+  enabled: boolean;
+};
+
 export type MatrixAISettings = {
   provider: AIProvider;
   mode: AIMode;
   ollabridge: OllaBridgeSettings;
+  matrixDesigner: MatrixDesignerSettings;
 };
 
 export const AI_SETTINGS_STORAGE_KEY = "matrix-builder:ai-settings:v1";
@@ -44,5 +52,8 @@ export const DEFAULT_AI_SETTINGS: MatrixAISettings = {
     apiKey: "",
     pairToken: "",
     deviceId: "",
+  },
+  matrixDesigner: {
+    enabled: false,
   },
 };

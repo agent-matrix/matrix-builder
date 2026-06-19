@@ -22,6 +22,7 @@ export function mergeAISettings(raw: unknown): MatrixAISettings {
   const mode = r.mode === "assisted" ? "assisted" : "deterministic";
   const authMode =
     ob.authMode === "api_key" || ob.authMode === "local-trust" ? ob.authMode : "pairing";
+  const md = (r.matrixDesigner ?? {}) as Record<string, unknown>;
   return {
     provider,
     mode,
@@ -33,7 +34,15 @@ export function mergeAISettings(raw: unknown): MatrixAISettings {
       pairToken: typeof ob.pairToken === "string" ? ob.pairToken : "",
       deviceId: typeof ob.deviceId === "string" ? ob.deviceId : "",
     },
+    matrixDesigner: {
+      enabled: md.enabled === true,
+    },
   };
+}
+
+// Convenience: is the optional Matrix Designer enhancement turned on?
+export function isMatrixDesignerEnabled(): boolean {
+  return getAISettings().matrixDesigner.enabled;
 }
 
 export function getAISettings(): MatrixAISettings {
