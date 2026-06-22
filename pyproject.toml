@@ -21,6 +21,14 @@ dev = [
   "prometheus-client>=0.20",
 ]
 
+
+# This repository is a multi-app workspace, not a single importable Python package.
+# Keep package discovery explicit so `pip install .` can build metadata without
+# trying to auto-package top-level workspace directories such as apps/ and infra/.
+[tool.setuptools]
+packages = []
+py-modules = []
+
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests", "services/api/tests", "workers/tests"]

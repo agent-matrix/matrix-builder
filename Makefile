@@ -19,12 +19,14 @@ help:
 	@echo "  make clean      Remove local caches"
 
 install: bootstrap
-	@echo "Installing Python dependencies (uv if present, else pip)…"
+	@echo "Installing Python dependencies into .venv (uv if present, else venv + pip)…"
 	@if command -v uv >/dev/null 2>&1; then \
-	  uv pip install --system -r requirements.txt; \
+	  uv venv --python "$${PYTHON:-python3}" .venv; \
+	  UV_LINK_MODE=copy uv pip install --python .venv/bin/python -r requirements.txt; \
 	else \
-	  echo "uv not found — falling back to pip (see https://docs.astral.sh/uv/ to install uv)"; \
-	  pip install -r requirements.txt; \
+	  echo "uv not found — falling back to venv + pip (see https://docs.astral.sh/uv/ to install uv)"; \
+	  "$${PYTHON:-python3}" -m venv .venv; \
+	  .venv/bin/python -m pip install -r requirements.txt; \
 	fi
 	@echo "Installing frontend dependencies (pnpm workspace)…"
 	@pnpm install
