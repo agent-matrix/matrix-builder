@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import AuthControls from "../AuthControls";
 import BundleThumbnail from "../BundleThumbnail";
@@ -14,6 +14,7 @@ const I = {
   check: (<><circle cx="12" cy="12" r="8.5" /><path d="M8.5 12.3l2.4 2.4 4.6-5" /></>),
   doc: (<><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4" /></>),
   plus: <path d="M12 5v14M5 12h14" />,
+  info: (<><circle cx="12" cy="12" r="9" /><path d="M12 11.5v4.5" /><path d="M12 8h.01" /></>),
   shield: (<><path d="M12 2.5l7 3v5.5c0 4.3-2.9 7.4-7 9-4.1-1.6-7-4.7-7-9V5.5z" /><path d="M9 12l2 2 4-4.2" /></>),
   trash: (<><path d="M4 7h16" /><path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" /><path d="M6 7l1 12a1 1 0 001 1h8a1 1 0 001-1l1-12" /><path d="M10 11v6M14 11v6" /></>),
 };
@@ -24,10 +25,18 @@ function Ic({ d, size = 18 }: { d: ReactNode; size?: number }) {
 const STATUS_LABEL: Record<BuildStatus, string> = { ready: "Ready", validated: "Validated", draft: "Draft" };
 type Filter = "all" | "recent" | "validated" | "drafts";
 
+const SORTS = { updated: "Last updated", name: "Name", status: "Status" } as const;
+type Sort = keyof typeof SORTS;
+// "Most done" first when sorting by status, then most-recently-updated within a status.
+const STATUS_RANK: Record<BuildStatus, number> = { validated: 0, ready: 1, draft: 2 };
+
 export default function MyBuildsPage() {
   const router = useRouter();
   const [qy, setQy] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [sort, setSort] = useState<Sort>("updated");
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef<HTMLDivElement | null>(null);
   const [builds, setBuilds] = useState<SavedBuild[]>([]);
   const [loaded, setLoaded] = useState(false); // avoid flashing the empty state before the first read
   const [pendingDelete, setPendingDelete] = useState<SavedBuild | null>(null);
@@ -57,10 +66,27 @@ export default function MyBuildsPage() {
     };
   }, []);
 
+  // Close the sort menu on outside click or Escape (standard menu behaviour).
+  useEffect(() => {
+    if (!sortOpen) return;
+    const onDoc = (e: MouseEvent) => { if (sortRef.current && !sortRef.current.contains(e.target as Node)) setSortOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSortOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [sortOpen]);
+
   let list = builds.filter((b) => (b.name + " " + b.description).toLowerCase().includes(qy.toLowerCase()));
   if (filter === "validated") list = list.filter((b) => b.status === "validated");
   else if (filter === "drafts") list = list.filter((b) => b.status === "draft");
-  else if (filter === "recent") list = list.slice(0, 4);
+  if (filter === "recent") {
+    // "Recent" is its own view: the 4 most recently updated, regardless of the sort choice.
+    list = [...list].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
+  } else if (sort === "name") {
+    list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sort === "status") {
+    list = [...list].sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || b.updatedAt - a.updatedAt);
+  } // "updated": the store already returns newest-first
 
   const open = (id: string) => router.push(`/matrix-builder/builds/${id}`);
 
@@ -89,7 +115,23 @@ export default function MyBuildsPage() {
               </button>
             ))}
           </div>
-          <div className="lib-sort">Sort by <span className="lib-sortbtn">Last updated <span className="cv">▾</span></span></div>
+          <div className="lib-sort" ref={sortRef}>
+            <span className="lib-sortlabel">Sort by</span>
+            <button type="button" className="lib-sortbtn" aria-haspopup="listbox" aria-expanded={sortOpen} onClick={() => setSortOpen((v) => !v)}>
+              {SORTS[sort]} <span className={"cv" + (sortOpen ? " up" : "")} aria-hidden="true">▾</span>
+            </button>
+            {sortOpen && (
+              <ul className="lib-sortmenu" role="listbox" aria-label="Sort builds by">
+                {(Object.keys(SORTS) as Sort[]).map((k) => (
+                  <li key={k}>
+                    <button type="button" role="option" aria-selected={sort === k} className={"lib-sortopt" + (sort === k ? " on" : "")} onClick={() => { setSort(k); setSortOpen(false); }}>
+                      {SORTS[k]}{sort === k && <Ic d={I.check} size={14} />}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         {!loaded ? (
@@ -103,6 +145,15 @@ export default function MyBuildsPage() {
                 <div className="bc-thumb">
                   <BundleThumbnail seed={b.id} />
                   <span className="bc-lock"><Ic d={I.lock} size={14} /></span>
+                  <button
+                    className="bc-info"
+                    type="button"
+                    aria-label={`View blueprint details for ${b.name}`}
+                    title="View blueprint details"
+                    onClick={(e) => { e.stopPropagation(); router.push(`/matrix-builder/builds/${b.id}?view=blueprint`); }}
+                  >
+                    <Ic d={I.info} size={15} />
+                  </button>
                   <button
                     className="bc-del"
                     type="button"
