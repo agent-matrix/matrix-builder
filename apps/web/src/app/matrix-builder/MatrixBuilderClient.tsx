@@ -17,6 +17,7 @@ import { fetchBlueprintDetails, saveBlueprintDetails, type DesignerCandidate } f
 import { getCapabilities } from "@/lib/capabilities";
 import { generateCandidates } from "@/lib/blueprint-engine";
 import { useBlueprintWorkspace } from "@/lib/blueprint-store";
+import type { BlueprintDetailsData } from "@/types/blueprint-state";
 import UploadExistingPlanModal, { type UploadSelection } from "@/components/matrix-builder/UploadExistingPlanModal";
 import {
   downloadBundleZip,
@@ -833,6 +834,7 @@ function BundleResult({
   showToast,
   onNew,
   onMyBuilds,
+  onBackToBlueprints,
   onSubmit,
   onTimeline,
   onDownload,
@@ -849,6 +851,10 @@ function BundleResult({
   showToast: (message: string) => void;
   onNew: () => void;
   onMyBuilds: () => void;
+  // When set (the in-page creation flow), the back link returns to Step 1 · Choose a blueprint so
+  // the user can swap/upgrade the blueprint. When undefined (a reopened build), it falls back to
+  // the My Builds library, which is where that user came from.
+  onBackToBlueprints?: () => void;
   onSubmit: () => void;
   onTimeline: () => void;
   onDownload: () => void;
@@ -1102,7 +1108,9 @@ function BundleResult({
 
         {/* CENTER: current batch prompt */}
         <div className="brx-center">
-          <button className="upd-back reveal" type="button" onClick={onMyBuilds}><MatrixIcon size={15}>{icons.back}</MatrixIcon>My Builds</button>
+          {onBackToBlueprints
+            ? <button className="upd-back reveal" type="button" onClick={onBackToBlueprints}><MatrixIcon size={15}>{icons.back}</MatrixIcon>Back to Blueprints</button>
+            : <button className="upd-back reveal" type="button" onClick={onMyBuilds}><MatrixIcon size={15}>{icons.back}</MatrixIcon>My Builds</button>}
           <h1 className="br-h1 reveal">{buildName}</h1>
           <div className="br-meta reveal">v1.0.0 <span className="dm-sep">·</span> <span className="dm-batch">Batch {cur.n}</span> <span className="dm-sep">·</span> <span className="br-ready"><span className="dm-dot" />Ready</span></div>
 
@@ -1515,6 +1523,7 @@ function BuildTimeline({
   onContinue: () => void;
 }) {
   const batches = timelineBatches(passed);
+  const [openRow, setOpenRow] = useState<string | null>(null); // disclosure: expand a batch's detail
   return (
     <div className="mb-dark-page">
       <header className="mb-detail-bar"><div className="l-wrap dbar-in">
@@ -1544,9 +1553,17 @@ function BuildTimeline({
                     <div className="tl-title">Batch {batch.n} — {batch.title}</div>
                     <div className="tl-commit">Matrix Commit {batch.commit} <span className="tl-dot">·</span> <span className="tl-pass">Passed</span></div>
                     <div className="tl-meta">{batch.meta.map((m, j) => <span key={m}>{j > 0 && <span className="tl-dot">·</span>} {m} </span>)}</div>
+                    {openRow === batch.n && (
+                      <div className="tl-detail">
+                        <p className="tl-detail-goal">{STAGES.find((s) => s.n === batch.n)?.goal ?? "Implemented and validated against the Matrix contract."}</p>
+                        <ul className="tl-detail-list">
+                          {batch.meta.map((m) => <li key={m}><MatrixIcon size={13}>{icons.check}</MatrixIcon>{m}</li>)}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                   <div className="tl-actions">
-                    <button className="tl-view" type="button" onClick={() => showToast(`Matrix Commit ${batch.commit} — followed the contract`)}>View details <MatrixIcon size={15}>{icons.chevR}</MatrixIcon></button>
+                    <button className="tl-view" type="button" aria-expanded={openRow === batch.n} onClick={() => setOpenRow((cur) => (cur === batch.n ? null : batch.n))}>{openRow === batch.n ? "Hide details" : "View details"} <MatrixIcon size={15}>{icons.chevR}</MatrixIcon></button>
                   </div>
                 </article>
               </div>
@@ -1657,7 +1674,7 @@ function archIcon(name: string): IconDefinition {
 
 function BlueprintDetails({ candidate, subject, idea, designerOn, aiAssist, onBack, onChoose, onNotice }: {
   candidate: BlueprintCandidate; subject: string; idea: string; designerOn: boolean; aiAssist: boolean;
-  onBack: () => void; onChoose: () => void; onNotice: (message: string) => void;
+  onBack: () => void; onChoose: (blueprint?: BlueprintDetailsData) => void; onNotice: (message: string) => void;
 }) {
   // C0/C1/C2 — the workspace is a single client state object mutated by the in-browser engine.
   // No fetch on the render path: generate + chat run locally, so the page is instant and works
@@ -1666,6 +1683,7 @@ function BlueprintDetails({ candidate, subject, idea, designerOn, aiAssist, onBa
   const { data, messages, busy, dirty } = ws;
   const [draft, setDraft] = useState("");
   const [chatTab, setChatTab] = useState<"chat" | "activity">("chat");
+  const [archOpen, setArchOpen] = useState(false); // disclosure: show component dependencies inline
 
   // C5 — optional server sync behind a capability check. With no backend (offline / static
   // hosting) this is a no-op and the UX is identical; with a backend it syncs the richer output.
@@ -1687,6 +1705,28 @@ function BlueprintDetails({ candidate, subject, idea, designerOn, aiAssist, onBa
     if (!text) return;
     ws.applyInstruction(text); // instant, local, no network — sections patch from the engine
     setDraft("");
+  }
+
+  // Attach: pull a file in as refinement context. Text-like files are read inline (so the engine
+  // can act on their content); anything else is referenced by name. The content lands in the
+  // composer so the user can edit the instruction before sending — nothing leaves the browser.
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  function attachFile(file: File) {
+    const textLike = file.type.startsWith("text/")
+      || /\.(md|markdown|txt|json|ya?ml|csv|tsx?|jsx?|py|go|rs|java|rb|toml|html?|css|sql|env|ini|sh)$/i.test(file.name);
+    if (textLike && file.size <= 256_000) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const body = String(reader.result ?? "").slice(0, 4000);
+        setDraft((d) => `${d ? d + "\n\n" : ""}Use ${file.name} as context for the refinement:\n${body}`);
+        onNotice(`Attached ${file.name}`);
+      };
+      reader.onerror = () => onNotice("Couldn't read that file.");
+      reader.readAsText(file);
+    } else {
+      setDraft((d) => `${d ? d + " " : ""}(reference: ${file.name})`);
+      onNotice(`Attached ${file.name}`);
+    }
   }
 
   function save() {
@@ -1818,7 +1858,14 @@ function BlueprintDetails({ candidate, subject, idea, designerOn, aiAssist, onBa
             </div>
 
             <div className="bd-composer">
-              <button className="bd-composer-add" type="button" aria-label="Attach" title="Attach"><MatrixIcon size={16}>{icons.plus}</MatrixIcon></button>
+              <button className="bd-composer-add" type="button" aria-label="Attach a file for context" title="Attach a file for context" onClick={() => fileRef.current?.click()}><MatrixIcon size={16}>{icons.plus}</MatrixIcon></button>
+              <input
+                ref={fileRef}
+                type="file"
+                hidden
+                accept=".md,.markdown,.txt,.json,.yaml,.yml,.csv,.ts,.tsx,.js,.jsx,.py,.go,.rs,.java,.rb,.toml,.html,.css,.sql,.env,.ini,.sh,image/*,application/pdf"
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) attachFile(f); }}
+              />
               <input className="bd-composer-input" value={draft} placeholder="Describe the change you want…" disabled={busy}
                 onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") send(); }} aria-label="Describe the change you want" />
               <span className="bd-kbd" aria-hidden="true">⌘↵</span>
@@ -1838,10 +1885,20 @@ function BlueprintDetails({ candidate, subject, idea, designerOn, aiAssist, onBa
                 <div className="bd-arch-node" key={n.name}>
                   <span className="bd-arch-top"><span className="bd-arch-ic"><MatrixIcon size={15}>{archIcon(n.name)}</MatrixIcon></span><span className="bd-arch-label">{n.name}</span></span>
                   <span className="bd-arch-sub">{n.description}</span>
+                  {archOpen && (n.dependencies?.length ?? 0) > 0 && (
+                    <div className="bd-arch-deps">
+                      <span className="bd-arch-deps-k">depends on</span>
+                      {n.dependencies.map((d) => <span className="bd-arch-dep" key={d}>{d}</span>)}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-            <button className="bd-card-link" type="button" onClick={() => onNotice("Architecture detail view coming soon.")}>View details of Architecture <MatrixIcon size={13}>{icons.arrow}</MatrixIcon></button>
+            {architecture.some((n) => (n.dependencies?.length ?? 0) > 0) && (
+              <button className="bd-card-link" type="button" aria-expanded={archOpen} onClick={() => setArchOpen((v) => !v)}>
+                {archOpen ? "Hide dependencies" : "Show dependencies"} <MatrixIcon size={13}>{icons.arrow}</MatrixIcon>
+              </button>
+            )}
           </section>
 
           <section className="bd-card reveal">
@@ -1877,7 +1934,7 @@ function BlueprintDetails({ candidate, subject, idea, designerOn, aiAssist, onBa
 
           <div className="bd-actions">
             <button className="bd-back" type="button" onClick={onBack}><MatrixIcon size={15}>{icons.back}</MatrixIcon> Back to blueprints</button>
-            <button className="bd-choose" type="button" onClick={onChoose}>Choose this blueprint <MatrixIcon size={16}>{icons.arrow}</MatrixIcon></button>
+            <button className="bd-choose" type="button" onClick={() => onChoose(data)}>Choose this blueprint <MatrixIcon size={16}>{icons.arrow}</MatrixIcon></button>
           </div>
         </aside>
       </div>
@@ -1886,15 +1943,17 @@ function BlueprintDetails({ candidate, subject, idea, designerOn, aiAssist, onBa
   );
 }
 
-export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: InitialBuild } = {}) {
+export default function MatrixBuilderClient({ initialBuild, initialView = "bundle" }: { initialBuild?: InitialBuild; initialView?: "bundle" | "blueprint" } = {}) {
   // When reopened from My Builds we land directly on the active build screen, reconstructed
-  // from the persisted build, so the user keeps full context (no state is lost).
-  const [phase, setPhase] = useState<Phase>(initialBuild ? "bundle" : "hero");
+  // from the persisted build, so the user keeps full context (no state is lost). The "i" affordance
+  // on a build card opens it straight on its blueprint details (initialView="blueprint").
+  const reopenOnBlueprint = Boolean(initialBuild) && initialView === "blueprint";
+  const [phase, setPhase] = useState<Phase>(initialBuild ? (reopenOnBlueprint ? "details" : "bundle") : "hero");
   const [idea, setIdea] = useState(initialBuild?.idea ?? "");
   const [scanIndex, setScanIndex] = useState(0);
   // Blueprint Details view — the candidate being inspected, and whether the Matrix Designer
   // enhancement is on (read from settings when the user opens Details, so it reflects the toggle).
-  const [detailsCandidate, setDetailsCandidate] = useState<BlueprintCandidate | null>(null);
+  const [detailsCandidate, setDetailsCandidate] = useState<BlueprintCandidate | null>(reopenOnBlueprint ? (initialBuild?.candidate ?? null) : null);
   const [designerOn, setDesignerOn] = useState(false);
   const [candidates, setCandidates] = useState<BlueprintCandidate[]>([]);
   const [candidatesLoaded, setCandidatesLoaded] = useState(false);
@@ -2031,7 +2090,12 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const choose = (candidate: BlueprintCandidate) => {
+  // `blueprint` is the live, edited Blueprint Details state. When present it is the source of
+  // truth: we persist the user's refinements for this build first (the server-side Designer keys
+  // on idea + candidate), so the bundle — and therefore the coder prompt — is compiled from the
+  // edited blueprint, not just the idea + tier. The save is fail-open, so a build never fails to
+  // start when offline (the edits are still kept locally via the workspace's localStorage).
+  const choose = (candidate: BlueprintCandidate, blueprint?: BlueprintDetailsData) => {
     const localId = generateBundleId();
     setChosen(candidate);
     setBatchIndex(0);
@@ -2045,6 +2109,8 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
     void (async () => {
       let resolvedId = localId;
       try {
+        // Make Details the source of truth before compiling the bundle.
+        if (blueprint) await saveBlueprintDetails(candidate.id, effectiveIdea, blueprint, localId);
         const real = await apiGenerateBundle({ idea: effectiveIdea }, coder, candidate.candidate_id);
         setBundle(real);
         setBundleFiles(toUiBundleFiles(real));
@@ -2195,6 +2261,15 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
   const goPhase = (next: Phase) => {
     setPhase(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Step 2 → Step 1. Return to the blueprint chooser so the user can swap/upgrade the blueprint.
+  // The three candidates are normally still in state; if not (e.g. a build started from a brief or
+  // an imported blueprint), regenerate them from the same idea so Step 1 is never empty.
+  const backToBlueprints = () => {
+    if (candidates.length > 0) goPhase("candidates");
+    else if (effectiveIdea) generate(effectiveIdea);
+    else goPhase("candidates");
   };
 
   const reset = () => {
@@ -2425,15 +2500,17 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
 
       {phase === "details" && detailsCandidate && (
         <>
-          <BuilderBar onNew={reset} onNotice={showToast} />
+          <BuilderBar onNew={startNewBuild} onNotice={showToast} />
           <BlueprintDetails
             candidate={detailsCandidate}
             subject={headingSubject}
             idea={effectiveIdea}
             designerOn={designerOn}
             aiAssist={isOllaBridgeAssistAvailable()}
-            onBack={() => setPhase("candidates")}
-            onChoose={() => choose(detailsCandidate)}
+            // Reopened from a build card → back returns to that build; in the creation flow → back to Step 1.
+            onBack={() => goPhase(initialBuild ? "bundle" : "candidates")}
+            // Details is the source of truth: hand the edited blueprint to bundle generation.
+            onChoose={(bp) => choose(detailsCandidate, bp)}
             onNotice={showToast}
           />
         </>
@@ -2453,6 +2530,7 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
           showToast={showToast}
           onNew={startNewBuild}
           onMyBuilds={() => router.push("/matrix-builder/builds")}
+          onBackToBlueprints={!initialBuild ? backToBlueprints : undefined}
           onSubmit={() => goPhase("submit")}
           onTimeline={() => goPhase("timeline")}
           onDownload={() => void downloadBundle()}

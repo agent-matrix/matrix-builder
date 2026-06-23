@@ -14,9 +14,15 @@ export default function BuildDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  // "i" on a build card deep-links to that build's blueprint details (?view=blueprint). Read from
+  // window in the effect (client-only) so we don't need a Suspense boundary for useSearchParams.
+  const [initialView, setInitialView] = useState<"bundle" | "blueprint">("bundle");
 
   // Reconstruct the active build screen from the persisted build (deterministic from idea + tier).
   useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "blueprint") {
+      setInitialView("blueprint");
+    }
     const saved = getBuild(id);
     if (!saved) {
       setState({ status: "missing" });
@@ -41,7 +47,7 @@ export default function BuildDetailPage() {
   }, [id]);
 
   if (state.status === "ready") {
-    return <MatrixBuilderClient key={id} initialBuild={state.build} />;
+    return <MatrixBuilderClient key={id} initialBuild={state.build} initialView={initialView} />;
   }
 
   return (
