@@ -18,6 +18,9 @@ class MatrixDefinitionsClient:
     source: str = "matrix-definitions"
     version: str = "2026.06.0-preview"
     rules_count: int = 161
+    # Canonical, public location of the full RMD pack (rule text + technology baseline).
+    # The prompt points coders here so they can read the rules, not just their ids.
+    pages_url: str = "https://agent-matrix.github.io/matrix-definitions/definitions/"
 
     def status(self) -> dict[str, str]:
         return {
@@ -36,6 +39,10 @@ class MatrixDefinitionsClient:
             digest=digest,
             rules_count=self.rules_count,
         )
+
+    def download_url(self) -> str:
+        """Where a coder fetches the full Ruslan Definitions pack for the pinned version."""
+        return self.pages_url
 
     def required_control_files(self) -> list[str]:
         return [

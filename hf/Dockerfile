@@ -35,7 +35,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/services/api \
     # start.sh). The control plane calls it here and falls back to deterministic generation if down.
     MATRIX_DESIGNER_PORT=8077 MATRIX_DESIGNER_URL=http://127.0.0.1:8077
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv \
+# git + ca-certificates are required: requirements.txt installs matrix-designer from a git+https
+# URL, which pip resolves by shelling out to `git` over TLS. Without git the build fails with
+# "Cannot find command 'git'"; without ca-certificates the clone fails TLS verification.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv git ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
   && python3 -m venv /opt/venv
 COPY requirements.txt /app/requirements.txt

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import AuthControls from "./AuthControls";
 import BundleThumbnail from "./BundleThumbnail";
-import { AI_CODERS, DEFAULT_ALLOWED_FILES, DEFAULT_VALIDATION_COMMANDS, IDEA_EXAMPLES, MATRIX_CONTRACT_FILES, SCANNING_MESSAGES } from "@/lib/constants";
+import { AI_CODERS, DEFAULT_ALLOWED_FILES, DEFAULT_VALIDATION_COMMANDS, DEFINITIONS_URL, IDEA_EXAMPLES, MATRIX_CONTRACT_FILES, SCANNING_MESSAGES } from "@/lib/constants";
 import { STAGES, timelineBatches, type Stage } from "@/lib/build-batches";
 import { saveBuildProgress } from "@/lib/builds-store";
 import { type BuildStatus } from "@/lib/saved-bundles";
@@ -777,26 +777,47 @@ function CandidateCard({ candidate, choose, details, enrichment }: { candidate: 
   );
 }
 
-// Per-batch coder prompt, matching the design's batchCoderPrompt.
-function batchPrompt(coderName: string, buildName: string, stage: Stage, generic: boolean): string {
+// Offline fallback for the controlled coder prompt. The bundle screen prefers the engine's
+// prompt (getBundlePrompt); this is shown only when the backend is unreachable. It must still be
+// a real contract — fetch the bundle, download the Ruslan Definitions, edit in scope, validate —
+// so an offline user is never handed a bare "build a skeleton" instruction.
+function batchPrompt(coderName: string, buildName: string, stage: Stage, generic: boolean, bundleId: string): string {
   const intro = generic ? "You are the implementation worker." : `You are ${coderName}, an expert software engineer.`;
-  if (stage.n === "01") {
-    return `${intro}
-Build the initial project skeleton for the ${buildName}.
-Follow the blueprint and standards in this bundle.
-Do not implement features yet—create the structure, configs, and placeholders only.
-Return the full file tree and mark all tasks as complete.
-Return: files changed, commands run, test result, and a short summary.`;
-  }
-  return `${intro}
-Batch ${stage.n} — ${stage.title}.
-${stage.goal}
+  const taskLine = stage.n === "01"
+    ? `Build the initial project skeleton for ${buildName}: folders, configs, and placeholder files only — do not implement features yet.`
+    : `${stage.goal}`;
+  const contractList = MATRIX_CONTRACT_FILES.map((f) => `   - ${f}`).join("\n");
+  const fetchUrl = bundleId ? bundleUrl(bundleId) : "https://api.ruslanmv.com/v1/matrix-bundles/<bundle-id>";
+  return `# Matrix Builder — controlled implementation prompt (${coderName})
 
+${intro} You are a worker, not an architect: follow this contract, do not redesign it (RMD-101).
+
+## 1. Fetch the Matrix Bundle (the contract + scaffold)
+   GET ${fetchUrl}
+Unzip it and read the control files first:
+${contractList}
+
+## 2. Download the Ruslan Definitions (the standards you must obey)
+   ${DEFINITIONS_URL}
+This is the RMD pack: the full text of RMD-001…RMD-120 plus the approved technology baseline
+(stacks, security, CI). MATRIX_STANDARDS.lock in the bundle pins the exact version you must
+follow. Read the definitions before you write code.
+
+## 3. Implement Batch ${stage.n} — ${stage.title} (only)
+${taskLine}
 Rules:
-- Implement only Batch ${stage.n}.
-- Do not change MATRIX_BLUEPRINT.yaml or MATRIX_STANDARDS.lock.
-- Update tests and docs accordingly.
-Return: files changed, commands run, test result, and a short summary.`;
+- Edit only the files allowed by MATRIX_ALLOWED_CHANGES.md (RMD-002, RMD-107).
+- Do not modify MATRIX_BLUEPRINT.yaml, MATRIX_STANDARDS.lock, or .github/workflows/ (RMD-103).
+- Do not add dependencies, services, or auth not in the blueprint (RMD-105).
+
+## 4. Validate before finishing (RMD-119)
+   - pytest -q
+   - ruff check .
+   (or:  mb check <changed files>)
+
+## 5. Output
+   (1) plan, (2) files changed, (3) validation results, (4) blockers.
+End with exactly one:  MATRIX_STATUS: approved | needs_repair | rejected`;
 }
 
 function BundleResult({
@@ -2079,7 +2100,7 @@ export default function MatrixBuilderClient({ initialBuild }: { initialBuild?: I
         text = pack.prompt;
       } catch {
         const coderEntry = AI_CODERS.find((item) => item.id === coder) ?? AI_CODERS[1];
-        text = batchPrompt(coderEntry.name, chosen.name, STAGES[batchIndex], coder === "generic-ai-coder");
+        text = batchPrompt(coderEntry.name, chosen.name, STAGES[batchIndex], coder === "generic-ai-coder", bundleId);
       }
       if (!cancelled) {
         setPromptText(text);

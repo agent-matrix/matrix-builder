@@ -6,6 +6,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/services/api PI
     # below; the control plane calls it here and falls back to deterministic generation if down.
     MATRIX_DESIGNER_PORT=8077 MATRIX_DESIGNER_URL=http://127.0.0.1:8077
 WORKDIR /app
+# git + ca-certificates are required: requirements.txt installs matrix-designer from a git+https
+# URL, which pip/uv resolve by shelling out to `git` over TLS. Without git the build fails with
+# "Cannot find command 'git'"; without ca-certificates the clone fails TLS verification.
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir uv
 COPY requirements.txt /app/requirements.txt
 RUN uv pip install --system -r /app/requirements.txt
