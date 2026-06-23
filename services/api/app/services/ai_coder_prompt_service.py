@@ -31,6 +31,11 @@ DEFAULT_VALIDATION_COMMANDS = [
     "npm run build",
 ]
 
+# The canonical Ruslan Magana Definitions (RMD) pack — the full text of the rules that
+# MATRIX_STANDARDS.lock only pins by id, plus the approved technology baseline. The prompt
+# hands the coder a fetchable URL so it can read the rules it must obey, not just cite them.
+DEFINITIONS_URL = "https://agent-matrix.github.io/matrix-definitions/definitions/"
+
 CODER_ALIASES = {
     "claude": CoderId.CLAUDE_CODE,
     "claude_code": CoderId.CLAUDE_CODE,
@@ -190,6 +195,12 @@ You are using **{policy.coder.value}** to implement a Matrix Builder controlled 
 
 Bundle ID: {bundle_id}
 Task: `{task_id}`
+
+## Download the Ruslan Definitions
+
+{DEFINITIONS_URL}
+
+This is the RMD pack: the full text of `RMD-001`…`RMD-120` plus the approved technology baseline (stacks, security, CI). `MATRIX_STANDARDS.lock` in the bundle pins the exact version you must follow. Read the definitions before you write code — the lock cites rule ids, this is what they mean.
 
 ## Read first
 

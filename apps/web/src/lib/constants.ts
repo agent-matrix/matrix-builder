@@ -2,6 +2,10 @@ import type { AiCoder } from "@/types/coder";
 
 export const BUNDLE_API_BASE = "https://api.ruslanmv.com/v1/matrix-bundles";
 
+// The canonical Ruslan Magana Definitions (RMD) pack — the full rule text + technology
+// baseline that MATRIX_STANDARDS.lock pins by id. The controlled prompt points coders here.
+export const DEFINITIONS_URL = "https://agent-matrix.github.io/matrix-definitions/definitions/";
+
 export const IDEA_EXAMPLES = [
   "A GitHub repo intelligence agent",
   "A document Q&A assistant with citations",
